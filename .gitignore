@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Generated screenshots (used to build PDF, not part of source)
+screenshots-guide/
+
+# Binary PDF artifacts (regenerable from source)
+BRITE_SMS_PHASE_1_USER_GUIDE.pdf
+BRITE_SMS_TUTORIAL.pdf
+
+# Design prototype files (large, not part of deployable app)
+BriteRedesignFiles/

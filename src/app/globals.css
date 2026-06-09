@@ -1,26 +1,357 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ─── shadcn fallback defaults (active when no data-theme is set) ─── */
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* ─── 1 · Sand & Clay ─── */
+[data-theme="sand-clay"] {
+  --primary:            #A85C41;
+  --primary-hover:      #924E35;
+  --accent:             #A85C41;
+  --accent-soft:        #F0E1D8;
+  --sidebar-bg:         #EEE7DB;
+  --sidebar-text:       #6E6557;
+  --sidebar-active-bg:  #F0E1D8;
+  --sidebar-active-text:#A85C41;
+  --sidebar-bar:        #A85C41;
+  --sidebar-hover:      #FBF7F0;
+  --sidebar-group:      #8C826F;
+  --brand-tile-bg:      #A85C41;
+  --brand-tile-fg:      #FFFFFF;
+  --page-bg:            #F3EDE3;
+  --card-bg:            #FFFFFF;
+  --surface-alt:        #FBF7F0;
+  --border:             #E7DECF;
+  --border-strong:      #DBD0BC;
+  --body-text:          #2B2722;
+  --body-text-2:        #5C544A;
+  --muted-text:         #8C826F;
+  --success:            #3E7350;
+  --success-bg:         #E6EFE5;
+  --warning:            #9C6A12;
+  --warning-bg:         #F5E9D2;
+  --error:              #A2503F;
+  --error-bg:           #F3E1DC;
+  --info:               #3A6491;
+  --info-bg:            #E2EAF2;
+  --inactive:           #746C5C;
+  --inactive-bg:        #ECE6D8;
+  --closed:             #566070;
+  --closed-bg:          #E8E8EA;
+  --radius:             14px;
+  --radius-sm:          10px;
+  --font-ui:            var(--font-hanken-grotesk, 'Hanken Grotesk', system-ui, sans-serif);
+  --font-display:       var(--font-source-serif-4, 'Source Serif 4', Georgia, serif);
+  --font-mono:          var(--font-jetbrains-mono, 'JetBrains Mono', ui-monospace, monospace);
+}
+
+/* ─── 2 · Greige & Sage ─── */
+[data-theme="greige-sage"] {
+  --primary:            #46694F;
+  --primary-hover:      #395743;
+  --accent:             #46694F;
+  --accent-soft:        #E4EDE4;
+  --sidebar-bg:         #FFFFFF;
+  --sidebar-text:       #696E64;
+  --sidebar-active-bg:  #E4EDE4;
+  --sidebar-active-text:#46694F;
+  --sidebar-bar:        #46694F;
+  --sidebar-hover:      #F6F6F1;
+  --sidebar-group:      #7E8273;
+  --brand-tile-bg:      #46694F;
+  --brand-tile-fg:      #FFFFFF;
+  --page-bg:            #EFEFE9;
+  --card-bg:            #FFFFFF;
+  --surface-alt:        #F6F6F1;
+  --border:             #E4E4DB;
+  --border-strong:      #D5D6CB;
+  --body-text:          #24281F;
+  --body-text-2:        #51564C;
+  --muted-text:         #7E8273;
+  --success:            #3F7353;
+  --success-bg:         #E4EFE5;
+  --warning:            #946610;
+  --warning-bg:         #F5EAD2;
+  --error:              #B0473B;
+  --error-bg:           #F6E3DF;
+  --info:               #3A6491;
+  --info-bg:            #E2EAF3;
+  --inactive:           #6E736A;
+  --inactive-bg:        #EAEBE3;
+  --closed:             #516074;
+  --closed-bg:          #E6E9EE;
+  --radius:             14px;
+  --radius-sm:          10px;
+  --font-ui:            var(--font-ibm-plex-sans, 'IBM Plex Sans', system-ui, sans-serif);
+  --font-display:       var(--font-ibm-plex-sans, 'IBM Plex Sans', system-ui, sans-serif);
+  --font-mono:          var(--font-ibm-plex-mono, 'IBM Plex Mono', ui-monospace, monospace);
+}
+
+/* ─── 3 · Muted Slate & Peach ─── */
+[data-theme="slate-peach"] {
+  --primary:            #565F84;
+  --primary-hover:      #474F70;
+  --accent:             #E0996F;
+  --accent-soft:        #F4E5DA;
+  --sidebar-bg:         #F4F4F7;
+  --sidebar-text:       #6A6E7E;
+  --sidebar-active-bg:  #F4E5DA;
+  --sidebar-active-text:#9A5B3E;
+  --sidebar-bar:        #E0996F;
+  --sidebar-hover:      #F1F1F4;
+  --sidebar-group:      #8A8E9C;
+  --brand-tile-bg:      #565F84;
+  --brand-tile-fg:      #FFFFFF;
+  --page-bg:            #F6F5F3;
+  --card-bg:            #FFFFFF;
+  --surface-alt:        #F1F1F4;
+  --border:             #E6E6EC;
+  --border-strong:      #D7D8E0;
+  --body-text:          #2B2F3D;
+  --body-text-2:        #525868;
+  --muted-text:         #8A8E9C;
+  --success:            #3F7353;
+  --success-bg:         #E4EFE6;
+  --warning:            #946610;
+  --warning-bg:         #F5EAD2;
+  --error:              #B0473B;
+  --error-bg:           #F6E3DF;
+  --info:               #3A6491;
+  --info-bg:            #E2EAF3;
+  --inactive:           #6B7280;
+  --inactive-bg:        #EAECEF;
+  --closed:             #516074;
+  --closed-bg:          #E6E9EE;
+  --radius:             14px;
+  --radius-sm:          10px;
+  --font-ui:            var(--font-hanken-grotesk, 'Hanken Grotesk', system-ui, sans-serif);
+  --font-display:       var(--font-hanken-grotesk, 'Hanken Grotesk', system-ui, sans-serif);
+  --font-mono:          var(--font-jetbrains-mono, 'JetBrains Mono', ui-monospace, monospace);
+}
+
+/* ─── 4 · Blue-Black & Off-White (dark sidebar) ─── */
+[data-theme="deep-navy"] {
+  --primary:            #1C2A3F;
+  --primary-hover:      #101B2A;
+  --accent:             #8AA0C2;
+  --accent-soft:        #E7EAEF;
+  --sidebar-bg:         #101B2A;
+  --sidebar-text:       #9CA9BA;
+  --sidebar-active-bg:  rgba(255,255,255,0.10);
+  --sidebar-active-text:#FFFFFF;
+  --sidebar-bar:        #8AA0C2;
+  --sidebar-hover:      rgba(255,255,255,0.06);
+  --sidebar-group:      #5E6E82;
+  --sidebar-border:     #1E2A3B;
+  --sidebar-strip-bg:   rgba(255,255,255,0.05);
+  --sidebar-strip-border:rgba(255,255,255,0.09);
+  --brand-tile-bg:      #FFFFFF;
+  --brand-tile-fg:      #101B2A;
+  --page-bg:            #F6F7F8;
+  --card-bg:            #FFFFFF;
+  --surface-alt:        #F1F3F5;
+  --border:             #E4E7EB;
+  --border-strong:      #D2D6DC;
+  --body-text:          #131A24;
+  --body-text-2:        #3F4854;
+  --muted-text:         #79828F;
+  --success:            #3F7353;
+  --success-bg:         #E4EFE6;
+  --warning:            #946610;
+  --warning-bg:         #F5EAD2;
+  --error:              #B0473B;
+  --error-bg:           #F6E3DF;
+  --info:               #3A6491;
+  --info-bg:            #E2EAF3;
+  --inactive:           #6B7280;
+  --inactive-bg:        #EAECEF;
+  --closed:             #516074;
+  --closed-bg:          #E6E9EE;
+  --radius:             12px;
+  --radius-sm:          9px;
+  --font-ui:            var(--font-ibm-plex-sans, 'IBM Plex Sans', system-ui, sans-serif);
+  --font-display:       var(--font-ibm-plex-sans, 'IBM Plex Sans', system-ui, sans-serif);
+  --font-mono:          var(--font-ibm-plex-mono, 'IBM Plex Mono', ui-monospace, monospace);
+}
+
+/* ─── 5 · Navy, Gold & White (dark sidebar) — DEFAULT ─── */
+[data-theme="navy-gold"] {
+  --primary:            #1E3A5F;
+  --primary-hover:      #16304F;
+  --accent:             #C9952A;
+  --accent-soft:        #ECE3CC;
+  --sidebar-bg:         #14233A;
+  --sidebar-text:       #A2B0C4;
+  --sidebar-active-bg:  rgba(201,149,42,0.16);
+  --sidebar-active-text:#E6C271;
+  --sidebar-bar:        #C9952A;
+  --sidebar-hover:      rgba(255,255,255,0.06);
+  --sidebar-group:      #6A7D96;
+  --sidebar-border:     #22344F;
+  --sidebar-strip-bg:   rgba(201,149,42,0.10);
+  --sidebar-strip-border:rgba(201,149,42,0.22);
+  --brand-tile-bg:      #C9952A;
+  --brand-tile-fg:      #14233A;
+  --page-bg:            #F7F6F2;
+  --card-bg:            #FFFFFF;
+  --surface-alt:        #F3F1EA;
+  --border:             #E7E3D8;
+  --border-strong:      #D8D2C2;
+  --body-text:          #1C2536;
+  --body-text-2:        #444F62;
+  --muted-text:         #857F71;
+  --success:            #3E7350;
+  --success-bg:         #E6EFE5;
+  --warning:            #9A6912;
+  --warning-bg:         #F4EAD3;
+  --error:              #A2503F;
+  --error-bg:           #F3E1DC;
+  --info:               #3A6491;
+  --info-bg:            #E2EAF2;
+  --inactive:           #746C5C;
+  --inactive-bg:        #ECE6D8;
+  --closed:             #566070;
+  --closed-bg:          #E8E8EA;
+  --radius:             12px;
+  --radius-sm:          9px;
+  --font-ui:            var(--font-hanken-grotesk, 'Hanken Grotesk', system-ui, sans-serif);
+  --font-display:       var(--font-source-serif-4, 'Source Serif 4', Georgia, serif);
+  --font-mono:          var(--font-jetbrains-mono, 'JetBrains Mono', ui-monospace, monospace);
+}
+
+/* ─── Map Brite semantic tokens → shadcn token names ─── */
+/* Order matters: this block must come BEFORE the theme blocks so that  */
+/* theme-specific overrides (e.g. --sidebar-border in dark themes) win. */
+/* Specificity is equal (one attribute selector each), cascade decides. */
+/* NOTE: --primary, --accent, --border are named identically in both    */
+/* systems — no remapping needed for those.                              */
+[data-theme] {
+  --background:                 var(--page-bg);
+  --foreground:                 var(--body-text);
+  --card:                       var(--card-bg);
+  --card-foreground:            var(--body-text);
+  --popover:                    var(--card-bg);
+  --popover-foreground:         var(--body-text);
+  --primary-foreground:         #FFFFFF;
+  --secondary:                  var(--surface-alt);
+  --secondary-foreground:       var(--body-text-2);
+  --muted:                      var(--surface-alt);
+  --muted-foreground:           var(--muted-text);
+  --accent-foreground:          var(--body-text);
+  --destructive:                var(--error);
+  --input:                      var(--border-strong);
+  --ring:                       var(--primary);
+  --sidebar:                    var(--sidebar-bg);
+  --sidebar-foreground:         var(--sidebar-text);
+  --sidebar-primary:            var(--primary);
+  --sidebar-primary-foreground: var(--sidebar-active-text);
+  --sidebar-accent:             var(--sidebar-active-bg);
+  --sidebar-accent-foreground:  var(--sidebar-active-text);
+  /* default sidebar border for light themes; dark themes override below */
+  --sidebar-border:             var(--border);
+  --sidebar-ring:               var(--primary);
+  /* font for body text */
+  --font-sans:                  var(--font-ui);
+}
+
+/* Dark-sidebar themes override --sidebar-border with their token value */
+[data-theme="deep-navy"] {
+  --sidebar-border: #1E2A3B;
+}
+[data-theme="navy-gold"] {
+  --sidebar-border: #22344F;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-ui, var(--font-sans, system-ui, sans-serif));
+  }
+  html {
+    @apply font-sans;
+  }
 }
