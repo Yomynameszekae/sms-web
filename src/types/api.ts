@@ -630,3 +630,216 @@ export interface AuditLog {
   userAgent: string | null;
   createdAt: string;
 }
+
+// ─── Labels (Phase 2 Stage 1a) ───────────────────────────────────────────────
+
+export type LabelCategory = 'fee' | 'income' | 'expenditure';
+
+export interface FinanceLabel {
+  id: string;
+  schoolId: string;
+  category: LabelCategory;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+}
+
+export interface CreateLabelPayload {
+  category: LabelCategory;
+  name: string;
+  description?: string;
+}
+
+/** No `category`: it is immutable after creation. */
+export interface UpdateLabelPayload {
+  name?: string;
+  description?: string;
+}
+
+// ─── Attendance (Phase 2 Stage 1a) ───────────────────────────────────────────
+
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
+
+export interface AttendanceClassroomOption {
+  id: string;
+  displayName: string;
+  levelName: string;
+  academicYearId: string;
+  academicYearLabel: string;
+  canMark: boolean;
+}
+
+/**
+ * Every figure here is over SESSIONS. A day has two — morning and afternoon —
+ * and the rate is sessionsPresent / sessionsMarked. Mirrors
+ * attendance.reporting.ts on the backend, which is the single definition; do
+ * not recompute any of it here.
+ */
+export interface AttendanceSummary {
+  /** Per-status counts, over sessions. */
+  present: number;
+  absent: number;
+  late: number;
+  excused: number;
+  /** Rows marked in the period — NOT school days in the term. */
+  daysMarked: number;
+  /** 2 x daysMarked. NOT school sessions in the term. */
+  sessionsMarked: number;
+  /** present + late, over sessions. */
+  sessionsPresent: number;
+  /** absent + excused, over sessions. */
+  sessionsAbsent: number;
+  /** Both sessions present. */
+  daysFullyPresent: number;
+  /** Both sessions absent. */
+  daysFullyAbsent: number;
+  /** The sessions disagree — the number session attendance exists to surface. */
+  daysPartial: number;
+  attendanceRate: number | null;
+}
+
+export interface RegisterStudentRow {
+  enrollmentId: string;
+  studentId: string;
+  studentNumber: string;
+  fullName: string;
+  /**
+   * null means not marked — there is no stored `not_marked` status. Both
+   * sessions are null together or neither is.
+   */
+  morningStatus: AttendanceStatus | null;
+  morningReason: string | null;
+  afternoonStatus: AttendanceStatus | null;
+  afternoonReason: string | null;
+  recordId: string | null;
+  amended: boolean;
+}
+
+export interface AttendanceRegister {
+  classroom: {
+    id: string;
+    displayName: string;
+    levelName: string;
+    academicYearId: string;
+    academicYearLabel: string;
+  };
+  date: string;
+  term: { id: string; label: string; status: TermStatus; amendable: boolean } | null;
+  editable: boolean;
+  lockReason: string | null;
+  /** Per-status counts over sessions, plus the day-shape counts. */
+  counts: {
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    daysMarked: number;
+    daysFullyPresent: number;
+    daysFullyAbsent: number;
+    daysPartial: number;
+  };
+  unmarkedCount: number;
+  rows: RegisterStudentRow[];
+}
+
+export interface MarkRegisterResult extends AttendanceRegister {
+  createdCount: number;
+  amendedCount: number;
+  unchangedCount: number;
+  absentCount: number;
+}
+
+export interface MarkRegisterPayload {
+  classroomId: string;
+  date: string;
+  marks: Array<{
+    enrollmentId: string;
+    /** The MORNING session. */
+    status: AttendanceStatus;
+    reason?: string;
+    /**
+     * OMITTED MEANS "MIRROR THE MORNING" — on create AND on amend.
+     *
+     * So a client that corrects only the morning and omits an afternoon it
+     * had previously set will silently RESET that afternoon. Always send the
+     * complete effective state of every row; never send a partial patch and
+     * expect the unsent half to survive. `_register.tsx` composes a sparse
+     * edit overlay over the server's rows and submits all four fields of all
+     * of them, which is what makes this safe here.
+     */
+    afternoon?: {
+      status: AttendanceStatus;
+      reason?: string;
+    };
+  }>;
+}
+
+export interface AttendanceTermInfo {
+  id: string;
+  label: string;
+  startDate: string;
+  endDate: string;
+  status: TermStatus;
+}
+
+export interface StudentAttendanceSummary {
+  student: { id: string; studentNumber: string; fullName: string };
+  classroom: { id: string; displayName: string } | null;
+  term: AttendanceTermInfo;
+  summary: AttendanceSummary;
+}
+
+export interface ClassroomAttendanceSummary {
+  classroom: { id: string; displayName: string; levelName: string };
+  term: AttendanceTermInfo;
+  students: Array<{
+    enrollmentId: string;
+    studentId: string;
+    studentNumber: string;
+    fullName: string;
+    summary: AttendanceSummary;
+  }>;
+  classroomTotals: AttendanceSummary;
+  datesMarked: number;
+}
+
+export interface ReopenTermResult {
+  termId: string;
+  termLabel: string;
+  status: TermStatus;
+  registerAmendable: boolean;
+  reason: string;
+}
+
+/**
+ * The printable register: students down, dates across, AM and PM per cell.
+ * A different SHAPE from the term summary, because per-date detail is not in
+ * a summary view.
+ */
+export interface RegisterGridCell {
+  am: AttendanceStatus | null;
+  pm: AttendanceStatus | null;
+}
+
+export interface ClassroomRegisterGrid {
+  school: { name: string };
+  classroom: { id: string; displayName: string; levelName: string };
+  term: AttendanceTermInfo;
+  range: { from: string; to: string };
+  /** Marked dates in range, ascending. Unmarked dates are not columns. */
+  dates: string[];
+  rows: Array<{
+    enrollmentId: string;
+    studentId: string;
+    studentNumber: string;
+    fullName: string;
+    /** Keyed by `YYYY-MM-DD`. Dates absent from this map were not marked. */
+    cells: Record<string, RegisterGridCell>;
+    summary: AttendanceSummary;
+  }>;
+  totals: AttendanceSummary;
+}

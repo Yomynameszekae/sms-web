@@ -16,6 +16,8 @@ import {
   Heart,
   Link2,
   ClipboardList,
+  CalendarCheck,
+  Tags,
   UserCheck,
   FolderOpen,
   ScrollText,
@@ -48,6 +50,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'School Profile', href: '/school', icon: Building2 },
       { label: 'School Settings', href: '/school/settings', icon: Settings2 },
       { label: 'Document Sequences', href: '/document-sequences', icon: Hash },
+      { label: 'Labels', href: '/labels', icon: Tags },
     ],
   },
   {
@@ -73,6 +76,12 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Admissions', href: '/admissions', icon: ClipboardList },
       { label: 'Enrollments', href: '/enrollments', icon: UserCheck },
+    ],
+  },
+  {
+    label: 'Attendance',
+    items: [
+      { label: 'Register', href: '/attendance', icon: CalendarCheck },
     ],
   },
   {

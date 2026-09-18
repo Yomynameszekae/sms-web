@@ -71,4 +71,24 @@ export const queryKeys = {
     all: ['audit-logs'] as const,
     list: (params?: object) => [...queryKeys.auditLogs.all, 'list', params ?? {}] as const,
   },
+  labels: {
+    all: ['labels'] as const,
+    list: (params?: object) => [...queryKeys.labels.all, 'list', params ?? {}] as const,
+    detail: (id: string) => [...queryKeys.labels.all, id] as const,
+  },
+  attendance: {
+    all: ['attendance'] as const,
+    classrooms: () => [...queryKeys.attendance.all, 'classrooms'] as const,
+    register: (classroomId?: string, date?: string) =>
+      [...queryKeys.attendance.all, 'register', classroomId ?? '', date ?? ''] as const,
+    classroomSummary: (classroomId?: string, termId?: string) =>
+      [...queryKeys.attendance.all, 'summary', 'classroom', classroomId ?? '', termId ?? ''] as const,
+    studentSummary: (studentId?: string, termId?: string) =>
+      [...queryKeys.attendance.all, 'summary', 'student', studentId ?? '', termId ?? ''] as const,
+    grid: (classroomId?: string, termId?: string, from?: string, to?: string) =>
+      [
+        ...queryKeys.attendance.all, 'grid',
+        classroomId ?? '', termId ?? '', from ?? '', to ?? '',
+      ] as const,
+  },
 } as const;
