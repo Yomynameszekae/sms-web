@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil, Archive, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, Archive, ArchiveRestore, ChevronDown, ChevronRight } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -25,17 +25,23 @@ import {
 import { studentsApi } from '@/lib/api/endpoints/students';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { queryKeys } from '@/lib/query-keys';
+import { formatDateOnly, DATE_ONLY_LONG } from '@/lib/date';
 import type { Student, StudentStatus, Gender, CreateStudentPayload, UpdateStudentPayload, StudentGuardian } from '@/types/api';
 
-const STATUS_VARIANT: Record<StudentStatus, 'active' | 'archived' | 'inactive'> = {
-  active: 'active', withdrawn: 'inactive', archived: 'archived',
+// Student.status is the backend's EnrollmentStatus enum. Phase 1 only ever
+// sets 'active' and 'withdrawn' (archiving stores withdrawn + archivedAt),
+// but the map covers the full enum so a value set via the API still renders.
+const STATUS_VARIANT: Record<StudentStatus, 'active' | 'pending' | 'closed' | 'inactive'> = {
+  active: 'active', withdrawn: 'inactive', transferred: 'pending',
+  completed: 'closed', graduated: 'closed',
 };
 const STATUS_LABEL: Record<StudentStatus, string> = {
-  active: 'Active', withdrawn: 'Withdrawn', archived: 'Archived',
+  active: 'Active', withdrawn: 'Withdrawn', transferred: 'Transferred',
+  completed: 'Completed', graduated: 'Graduated',
 };
 
 const studentSchema = z.object({
-  studentNumber: z.string().min(1, 'Student number is required'),
+  studentNumber: z.string().optional(),
   firstName:     z.string().min(1, 'First name is required'),
   middleName:    z.string().optional(),
   lastName:      z.string().min(1, 'Last name is required'),
@@ -54,7 +60,7 @@ type CreateForm = z.infer<typeof studentSchema>;
 type UpdateForm = z.infer<typeof updateSchema>;
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return formatDateOnly(iso, DATE_ONLY_LONG);
 }
 
 function StudentCoreFields<T extends UpdateForm>({ form }: { form: ReturnType<typeof useForm<T>> }) {
@@ -123,8 +129,8 @@ function CreateStudentForm({
   return (
     <form id={id} onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="st-num">Student Number *</Label>
-        <Input id="st-num" placeholder="e.g. STU-001" {...form.register('studentNumber')} />
+        <Label htmlFor="st-num">Student Number</Label>
+        <Input id="st-num" placeholder="Leave blank to auto-generate" {...form.register('studentNumber')} />
         {form.formState.errors.studentNumber && <p className="text-xs text-destructive">{form.formState.errors.studentNumber.message}</p>}
       </div>
       <StudentCoreFields form={form} />
@@ -200,6 +206,12 @@ export function StudentsView() {
     invalidateKeys: INVALIDATE,
   });
 
+  const { mutate: restore } = useApiMutation<unknown, string>({
+    mutationFn: (id) => studentsApi.restore(id).then((r) => r.data.data),
+    successMessage: 'Student restored.',
+    invalidateKeys: INVALIDATE,
+  });
+
   const items = data?.items ?? [];
   const pagination = data?.pagination;
   const COLS = 7;
@@ -208,7 +220,7 @@ export function StudentsView() {
     <div className="space-y-6">
       <PageHeader
         title="Students"
-        description="Student records including personal details and enrolment history. Archiving is permanent in Phase 1 — archived students cannot be restored."
+        description="Student records including personal details and enrolment history. Archived students can be restored — restore returns them to Active."
         action={
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -280,9 +292,20 @@ export function StudentsView() {
                           <Button
                             size="sm" variant="ghost"
                             className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                            title="Archive"
                             onClick={() => archive(s.id)}
                           >
                             <Archive className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {s.archivedAt && (
+                          <Button
+                            size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                            title="Restore"
+                            onClick={() => restore(s.id)}
+                          >
+                            <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
+                            Restore
                           </Button>
                         )}
                       </div>
@@ -315,7 +338,7 @@ export function StudentsView() {
           id="student-create-form"
           onSubmit={(v) =>
             create({
-              studentNumber: v.studentNumber,
+              studentNumber: v.studentNumber || undefined,
               firstName: v.firstName, middleName: v.middleName || undefined,
               lastName: v.lastName, preferredName: v.preferredName || undefined,
               dateOfBirth: v.dateOfBirth, gender: v.gender,

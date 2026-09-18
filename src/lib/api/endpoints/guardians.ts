@@ -12,6 +12,8 @@ export interface GuardiansQuery {
   search?: string;
   page?: number;
   limit?: number;
+  /** Archived guardians are hidden by default; true includes them. */
+  includeArchived?: boolean;
 }
 
 export const guardiansApi = {
@@ -31,6 +33,9 @@ export const guardiansApi = {
 
   archive: (id: string) =>
     apiClient.post<ApiResponse<Guardian>>(`/guardians/${id}/archive`),
+
+  restore: (id: string) =>
+    apiClient.post<ApiResponse<Guardian>>(`/guardians/${id}/restore`),
 
   getStudents: (id: string) =>
     apiClient.get<ApiResponse<StudentGuardian[]>>(`/guardians/${id}/students`),

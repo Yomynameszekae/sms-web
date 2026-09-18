@@ -259,3 +259,16 @@ Next.js 16 renamed the special route-guard file from `middleware.ts` to `proxy.t
 **Backend files changed:** `sms-pre/src/staff/staff.service.ts`, `sms-pre/src/staff/staff.service.spec.ts` (new)
 
 **Documentation files changed:** `sms-web/BRITE_SMS_PHASE_1_USER_GUIDE.md`, `sms-web/BRITE_SMS_PHASE_1_USER_GUIDE.pdf`, `sms-web/PHASE_1_STAKEHOLDER_FEEDBACK_LOG.md` (new)
+
+---
+
+## Phase 1B resolutions (2026-08-14)
+
+The entries above are the historical record and are unchanged. Three deferred
+items have since shipped:
+
+| Item | Then | Now |
+|------|------|-----|
+| FB-03 — admission number dash | Documented as manual-via-Edit | **Resolved**: numbers auto-assign at creation (`ADM-…`), remain editable, unique per school. The dash is gone. |
+| FB-05 — offer reversal | Deferred, "not available in Phase 1" | **Resolved**: Offered → Application via Revert Offer; Enrolled → Offered via Revert once the enrollment is withdrawn; Reject and Withdraw are explicit terminal actions. (The earlier "not available" wording was also inaccurate at the time — `PATCH` accepted arbitrary status values with no validation; that bypass is now closed.) |
+| FB-07 — archive/unarchive | Documented as one-way | **Resolved** for levels, classrooms, staff, students, guardians (Restore, plus Show-archived toggles on levels/guardians). Files remain deliberately one-way. |

@@ -230,14 +230,14 @@ Click **Close** on the active year. Then activate the next year.
 ## 12. Terms
 
 
-Terms divide an academic year into Term 1, Term 2, Term 3. Only one term can be Active at a time.
+Terms divide an academic year. A Ghanaian school year normally runs Term 1, Term 2, Term 3, and the system accepts a term number from 1 to 4. Only one term can be Active at a time.
 
 > **Note:** Term Number = the order within the year (1st, 2nd, 3rd term). It is NOT a database ID.
 
 ### Term statuses: Draft → Pending → Active → Closed
 
 ### Creating a term
-Click **New Term**, select the year and term number, enter dates, click **Create**.
+Click **New Term**, select the year and term number, enter the start and end dates, click **Create**. Exam dates and Curriculum Scope are optional — leaving Curriculum Scope on **— Any —** is valid and means the term applies to both curricula.
 
 > 📷 *Screenshot: Terms page*
 
@@ -262,6 +262,15 @@ Controls the display order in lists. 1 = youngest, higher = older.
 ### Creating a level
 Click **New Level**, enter name, GES designation, level group, order index, click **Create**.
 
+### Archiving and restoring
+Archived levels are **hidden from the list by default** — tick **Show
+archived** to see them dimmed with a **Restore** button. A classroom cannot be
+restored while its level is archived ("Restore the level '…' first.").
+
+> 📷 *Screenshot: Levels with Show archived and Restore*
+
+Archived records permanently **reserve their identifiers** — numbers, names, order indexes, and phone numbers stay taken and cannot be given to a new record. Restore the archived record instead of recreating it.
+
 > 📷 *Screenshot: Levels page*
 
 > 📷 *Screenshot: New Level dialog*
@@ -279,7 +288,17 @@ A classroom is a class group linked to a level and academic year (e.g. "Basic 3A
 ### Creating a classroom
 Click **New Classroom**, select level, academic year, enter section label and display name, click **Create**.
 
+### Archiving and restoring
+Archived classrooms stay visible, dimmed, with a **Restore** button. If the
+classroom's level is archived, restore the level first. Archived records permanently **reserve their identifiers** — numbers, names, order indexes, and phone numbers stay taken and cannot be given to a new record. Restore the archived record instead of recreating it.
+
 ### Assigning a teacher
+Only **active** staff can be assigned — the picker filters as you type and
+offers active teachers only. If a classroom's current teacher has since been
+terminated, the assignment **stays on record** (the register of who taught the
+class is kept) and the dialog shows them flagged, e.g. "(terminated)"; they
+simply cannot receive new assignments.
+
 Click the person-tick icon on a classroom row, select a teacher, click **Assign**.
 
 > 📷 *Screenshot: Classrooms page*
@@ -302,7 +321,13 @@ Staff records store personal details, role category (Teacher/Admin/Support), emp
 Licensed, Induction, Unlicensed, N/A (for non-teaching staff).
 
 ### Adding a staff member
-Click **New Staff Member**, fill in fields, click **Create**.
+Click **New Staff Member**, fill in fields, click **Create**. The **Staff
+Number may be left blank** — the next number (e.g. `STF-0012`) is assigned
+automatically. Type one only when migrating an existing record.
+
+### Archiving and restoring
+Archiving marks the staff member Terminated. Archived staff show a
+**Restore** button, which returns them to **Active**. Archived records permanently **reserve their identifiers** — numbers, names, order indexes, and phone numbers stay taken and cannot be given to a new record. Restore the archived record instead of recreating it.
 
 ### Staff number must be unique
 Each staff member must have a unique staff number within the school. If you attempt to create or update a staff member with a staff number already in use, you will see:
@@ -326,7 +351,15 @@ Staff number is currently the only field that enforces uniqueness. Phone and ema
 The student register with search, expandable guardian panel, and status badges.
 
 ### Adding a student
-Click **New Student**, fill in student number, name, DOB, gender, click **Create**.
+Click **New Student**, fill in name, DOB, and gender, click **Create**. The
+**Student Number may be left blank** — the next number (e.g. `STU-0020`) is
+assigned automatically from the school's sequence. Type a number only when
+migrating an existing record.
+
+### Archiving and restoring
+Archiving keeps the record but marks the student Withdrawn. Archived students
+show a **Restore** button, which returns them to **Active** — with no
+enrollment, so re-enroll them if they are returning to a class. Archived records permanently **reserve their identifiers** — numbers, names, order indexes, and phone numbers stay taken and cannot be given to a new record. Restore the archived record instead of recreating it.
 
 > 📷 *Screenshot: Students list*
 
@@ -353,6 +386,21 @@ Guardians store parent/carer contact details. One guardian can be linked to mult
 ### Adding a guardian
 Click **New Guardian**, enter name and primary phone, click **Create**.
 Then go to **Student-Guardian Links** to link them to a student.
+
+### Archiving and restoring
+Archived guardians are **hidden from the list by default** — tick **Show
+archived** to see them with a **Restore** button. Archiving does not remove
+the guardian's links to students.
+
+> 📷 *Screenshot: Archived guardian with Restore button*
+
+Archived records permanently **reserve their identifiers** — numbers, names, order indexes, and phone numbers stay taken and cannot be given to a new record. Restore the archived record instead of recreating it.
+
+> **Primary slot and archived guardians.** If an archived guardian still holds
+> a student's *primary* slot, promoting another guardian with **Set Primary**
+> silently takes the slot over from the archived link. Between two active
+> guardians nothing changes: the existing primary must be handled explicitly
+> first.
 
 > 📷 *Screenshot: Guardians list*
 
@@ -393,15 +441,19 @@ Manages links between students and guardians. The relationship label (Mother, Fa
 The Admissions module tracks prospective students moving through the school's intake pipeline: from initial enquiry, through a formal offer, to enrollment in a classroom.
 
 ### The admissions pipeline
-**Enquiry → Offered → Enrolled** (or Rejected / Withdrawn)
+**Enquiry → Application → Offered → Enrolled**, or ending as **Rejected** or **Withdrawn** at any pre-enrolled stage.
 
 | Stage | Meaning |
 |-------|---------|
 | Enquiry | Initial record — a family has expressed interest |
+| Application | The paperwork stage has been formally opened (click **Apply** on an enquiry). An offer may also be made straight from Enquiry |
 | Offered | The school has extended a formal offer of a place |
 | Enrolled | The child has accepted and been placed in a classroom |
-| Rejected | The enquiry was not successful |
-| Withdrawn | The family withdrew their application |
+| Rejected | The **school** declined the application. Final |
+| Withdrawn | The **family** declined or walked away. Final |
+
+Rejected and Withdrawn are terminal: a returning family gets a new admission
+record (reference the old one in its notes).
 
 ### Creating an enquiry
 Click **New Admission**, fill in the applicant's details, click **Create Admission**. The record starts at status **Enquiry**.
@@ -409,19 +461,49 @@ Click **New Admission**, fill in the applicant's details, click **Create Admissi
 ### The student field is optional
 An admission record does not require an existing student profile. Enquiries can be recorded before the child's full student record has been created. If a student profile already exists, link it via the Student field — this is optional at the enquiry and offered stages.
 
-### Admission number — manually assigned
-The **Admission Number** field is not auto-generated in Phase 1. Until you set it via the Edit dialog, it displays as a dash (—). To assign a number, click **Edit** on the admission row and enter the admission number manually.
-
-> *Why does the admission number show as a dash?* It has not been set yet. Use Edit to assign one.
+### Admission number — assigned automatically
+Every admission receives the next number (e.g. `ADM-0008`) from the school's
+document sequence **at the moment it is created** — there is nothing to fill
+in. The number stays editable via **Edit** for reconciling against paper
+records; a number already in use is refused with a message naming it. Numbers
+are unique per school.
 
 ### Making an offer
-Click the **Offer** button on an Enquiry-status row. The status changes to **Offered**.
+Click **Offer** on an Enquiry- or Application-status row. The status changes
+to **Offered**, and the system records which staff member approved it and
+when.
 
 ### Enrolling
 Click the **Enroll** button on an Offered-status row. Select the classroom, academic year, and curriculum track, then click **Enroll**. A formal enrollment record is created automatically and the admission status updates to **Enrolled**.
 
-### Reversing an offer — not available in Phase 1
-Once a record has moved to **Offered** status, it cannot be moved back to Enquiry. There is no "Withdraw Offer" or "Reject" button on the Offered status in Phase 1. This is a planned improvement for a future phase.
+> **Curriculum Interest vs Curriculum Track.** An admission may record an interest of GES/NACCA, Abeka, or **BOTH**. An enrollment places the child on a single curriculum, so the Curriculum Track choices here are GES/NACCA and Abeka only — BOTH is not available. If a family's interest was BOTH, pick the curriculum the child will actually be taught on.
+
+### Rejecting and withdrawing
+On any Enquiry, Application, or Offered row: the **✕** button **rejects** the
+admission (school declines) and the **⇥** button **withdraws** it (family
+declines). Both are final.
+
+### Reversing an offer
+Click the **↩ Revert offer** button on an Offered row. The admission returns
+to **Application** and the offer timestamps and approver are cleared. The
+linked student, admission number, and notes are kept.
+
+### Reversing an enrollment
+An Enrolled admission shows a **Revert** button, for correcting mistaken
+enrollments only. It works **only after the enrollment itself has been
+withdrawn** on the Enrollments page:
+
+- While the enrollment is still active you get: *"Withdraw the enrollment
+  first."*
+- If the enrollment ended as completed, graduated, or transferred, reversal is
+  refused permanently: *"Cannot revert: the student's enrollment is
+  \<status\>, which records a real outcome. Reversal is only available after
+  an enrollment is withdrawn."*
+
+On success the admission returns to **Offered**, its enrolled timestamp is
+cleared, and the linked student is kept.
+
+> 📷 *Screenshot: Admission row actions by status*
 
 > 📷 *Screenshot: Admissions list*
 
@@ -445,11 +527,23 @@ Enrollments formally place a student in a classroom for an academic year.
 
 > **Important:** Enrollments cannot be edited after creation. Withdraw and re-enroll to move a student.
 
+> **One active enrollment per student per academic year.** This applies regardless of curriculum track. Attempting a second one is rejected with *"Student already has an active enrollment for this academic year. Withdraw it before creating another one."* Withdraw the existing enrollment first.
+
+> **Ended academic years are closed to enrollment.** Creating an enrollment in a year whose end date has passed is refused with *"Cannot enroll into \<year\>: the academic year ended on \<date\>."* Enrolling into the active year or a **future** year (pre-enrollment for the coming year) is allowed.
+
+> **Restored students come back as Active with no enrollment**, so they reappear in the New Enrollment student list — enroll them again if they are returning to a class.
+
 ### Creating an enrollment
-Click **New Enrollment**, select student/classroom/year/track, click **Enroll**.
+Click **New Enrollment**, select student/classroom/year/track, click **Enroll**. The Enrollment Date defaults to today and can be changed. Only students with an **Active** status appear in the Student list. Curriculum Track is GES/NACCA or Abeka — an enrollment sits on one curriculum, so BOTH is not offered.
+
+The **Student picker filters as you type** — part of a name or a student
+number both work, and the search covers the whole register, not just the
+first page. The **Classroom list shows only classrooms belonging to the
+selected academic year**; a mismatched pair is refused by the server with a
+message naming the classroom's actual year.
 
 ### Withdrawing
-Click **Withdraw**, enter exit date and reason, click **Withdraw**.
+Click **Withdraw**, enter the exit date, optionally enter a reason, click **Withdraw**. The exit date is required; the exit reason is optional and may be left blank.
 
 > 📷 *Screenshot: Enrollments list*
 
@@ -486,10 +580,14 @@ Each file record captures:
 Actual file content upload, secure download links, in-browser preview for common formats (images, PDF), and bulk file management.
 
 ### Archiving file records
-Archiving a file record is **permanent in Phase 1** — archived records cannot be restored.
+Archiving a file record is **permanent** — unlike levels, classrooms, staff,
+students, and guardians, file records have no Restore. An archived file record
+disappears from the list for good.
 
 ### Creating a file record
 Click **New File Record**, fill in owner type, file name, MIME type, size, storage details, click **Create Record**.
+
+> **All Phase 1 file records are private.** There is no setting for this — the server stores every record as private, which is why the **Public** column always reads *No*. Public/shareable links are a later-phase feature.
 
 > 📷 *Screenshot: Files page*
 
@@ -598,14 +696,16 @@ These are NOT bugs:
 - No Attendance, Fees, Grades, SMS, Parent Portal — all Phase 2
 - Files page has no upload button — Phase 2 (Phase 1 is metadata-only)
 - Dashboard Phase 2 cards are not active — intentional
-- No auto-generated numbers — Phase 2
+- Sequential numbers you didn't type — admission, student, and staff numbers auto-generate when left blank
 - Theme only changes on your device — by design, each user controls their own theme
 - Enrollments have no Edit button — intentional (withdraw and re-enroll)
 - Brief loading spinners — normal
-- Admission number shows as a dash (—) — the number has not been set; use Edit to assign one manually
+- An admission number you didn't choose — numbers are auto-assigned at creation and remain editable
 - The student field in New Admission is not required — enquiries can be recorded before a student profile exists
-- No "Withdraw Offer" or "Reject" button on an Offered admission — reversal is not available in Phase 1
-- No "Unarchive" or "Restore" button on any page — archiving is one-way in Phase 1; this is by design
+- "Withdraw the enrollment first." when reverting an enrolled admission — the enrollment must be withdrawn on the Enrollments page before the admission can be reverted
+- No Restore button on the Files page — file archiving is deliberately permanent; every other module can restore
+- Archived levels or guardians "missing" from their lists — they are hidden until you tick Show archived
+- A new record refused because the number/name/phone "already exists" when no visible record has it — an archived record is reserving the identifier; restore it instead of recreating
 - Files page shows no file content, preview, or download — Phase 1 stores metadata only
 
 
@@ -662,34 +762,34 @@ These are NOT bugs:
 All 16 routes: /dashboard, /school, /school/settings, /document-sequences, /academic-years, /terms, /levels, /classrooms, /staff, /students, /guardians, /student-guardians, /admissions, /enrollments, /files, /audit-logs
 
 ### Phase 2 (not yet available)
-Attendance, Grades, Fees, SMS, Parent Portal, File Upload, Dashboard Stats, Auto-numbering
+Attendance, Grades, Fees, SMS, Parent Portal, File Upload, Dashboard Stats
 
 ### Recommended testing order
 Login → School Profile → Settings → Document Sequences → Academic Years → Terms → Levels → Classrooms → Staff → Students → Guardians → Student-Guardian Links → Admissions → Enrollments → Files → Audit Logs
 
-### Archiving records in Phase 1
-Archiving is a **one-way action** in Phase 1. Once a record is archived it cannot be restored, re-activated, or unarchived through the UI. This applies to:
+### Archiving and restoring records
+Every module except Files can archive **and restore**. Archived records keep
+their identifiers reserved (numbers, names, order indexes, phone numbers), so
+restore beats recreating.
 
-| Module | Archive effect |
-|--------|----------------|
-| Levels | Level hidden from active lists; existing classroom links preserved |
-| Staff | Status set to Terminated; staff removed from teacher-assignment dropdowns |
-| Classrooms | Classroom hidden from active lists; enrollment records preserved |
-| Students | Student hidden from active lists; linked guardians and enrollments preserved |
-| Guardians | Guardian hidden from active lists; existing student links preserved |
-| Files | File record hidden from active lists; no physical file is deleted |
-
-Restoring archived records is a planned Phase 2 feature. If a record was archived by mistake in Phase 1, contact the system administrator.
+| Module | Archive effect | Restore |
+|--------|----------------|---------|
+| Levels | Hidden from the list until **Show archived** is ticked | Restore button → active again |
+| Staff | Status set to Terminated; row stays visible, dimmed | Restore → Active |
+| Classrooms | Row stays visible, dimmed | Restore → active (restore its level first if that is archived) |
+| Students | Marked Withdrawn + archived; row stays visible, dimmed | Restore → Active, with **no enrollment** — re-enroll if returning |
+| Guardians | Hidden until **Show archived** is ticked; student links kept | Restore button → back in the list |
+| Files | Hidden from the list — **permanently**; no physical file is deleted | **None — file archiving is final** |
 
 ### Known Phase 1 limitations
 
 | Limitation | Detail |
 |-----------|--------|
-| Admission numbers are manual | Not auto-generated. Set via Edit on each admission record. Displays as "—" until set. |
-| Offer reversal unavailable | An Offered admission cannot be moved back to Enquiry in Phase 1. |
-| Archive is one-way | No Unarchive or Restore function on any module. |
+| Terminal admission states are final | Rejected and Withdrawn admissions cannot be reopened — a returning family gets a new admission record. |
+| File archiving is final | Files is the one module without Restore. |
+| Identifier reservation | Archived records keep their numbers, names, order indexes, and phone numbers reserved permanently. |
 | Theme is device-level | Saved in the browser; does not sync across devices or affect other staff. |
 | Files are metadata-only | No upload, download, or preview. Only file information (name, type, size, storage key) is stored. |
-| Phone/email not uniqueness-checked for staff | Two staff records may share a phone or email without an error in Phase 1. Staff number is the only uniqueness constraint. |
+| Staff phone not uniqueness-checked | Staff **email** is unique per school (case-insensitive); phone is not checked. |
 
 

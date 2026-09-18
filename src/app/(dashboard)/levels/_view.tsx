@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil, Archive } from 'lucide-react';
+import { Plus, Pencil, Archive, ArchiveRestore } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table';
@@ -107,11 +108,12 @@ function LevelForm({
 
 export function LevelsView() {
   const [createOpen, setCreateOpen] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [editTarget, setEditTarget] = useState<Level | null>(null);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: queryKeys.levels.list(),
-    queryFn: () => levelsApi.list().then((r) => r.data.data),
+    queryKey: queryKeys.levels.list({ includeArchived: showArchived }),
+    queryFn: () => levelsApi.list(showArchived).then((r) => r.data.data),
   });
 
   const { mutate: create, isPending: creating } = useApiMutation<unknown, CreateLevelPayload>({
@@ -134,6 +136,12 @@ export function LevelsView() {
     invalidateKeys: INVALIDATE,
   });
 
+  const { mutate: restore } = useApiMutation<unknown, string>({
+    mutationFn: (id) => levelsApi.restore(id).then((r) => r.data.data),
+    successMessage: 'Level restored.',
+    invalidateKeys: INVALIDATE,
+  });
+
   const sorted = data ? [...data].sort((a, b) => a.orderIndex - b.orderIndex) : [];
   const COLS = 6;
 
@@ -141,7 +149,7 @@ export function LevelsView() {
     <div className="space-y-6">
       <PageHeader
         title="Levels"
-        description="Year groups and class stages — Crèche, Primary 1–6, JHS 1–3, and others. Archiving is permanent in Phase 1."
+        description="Year groups and class stages — Crèche, Primary 1–6, JHS 1–3, and others. Archived levels can be shown and restored."
         action={
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -149,6 +157,15 @@ export function LevelsView() {
           </Button>
         }
       />
+
+      <div className="flex items-center gap-3">
+        <Checkbox
+          id="lv-show-archived"
+          label="Show archived"
+          checked={showArchived}
+          onChange={(e) => setShowArchived(e.target.checked)}
+        />
+      </div>
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
@@ -191,13 +208,23 @@ export function LevelsView() {
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      {level.isActive && (
+                      {level.isActive ? (
                         <Button
                           size="sm" variant="ghost"
                           className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                          title="Archive"
                           onClick={() => archive(level.id)}
                         >
                           <Archive className="h-3.5 w-3.5" />
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                          title="Restore"
+                          onClick={() => restore(level.id)}
+                        >
+                          <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
+                          Restore
                         </Button>
                       )}
                     </div>

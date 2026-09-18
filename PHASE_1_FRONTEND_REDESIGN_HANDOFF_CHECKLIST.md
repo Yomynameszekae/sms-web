@@ -360,7 +360,7 @@ These are inherited from the Phase-1 functional implementation. None are regress
 | `middleware.ts` deprecation warning | Build prints a warning about the filename convention. No functional impact. Will be resolved in a maintenance pass. |
 | Enrollment cannot be edited after creation | The backend `PATCH /enrollments/:id` endpoint rejects all meaningful field changes. The correct workflow is withdraw + re-enroll. The UI makes this clear. |
 | No role-based page visibility | All authenticated users can see all pages. The backend enforces permissions. |
-| No auto-generated ID numbers | Student and staff numbers must be typed manually when creating records. Auto-generation from the document sequence config is deferred to Phase 2. |
+| ~~No auto-generated ID numbers~~ (resolved in Phase 1B) | Admission numbers auto-assign at creation; student and staff numbers auto-generate when left blank. |
 | Dashboard has no live statistics | The `/dashboard` page shows quick-action cards and a clearly-labelled Phase-2 preview strip. No fake or placeholder numbers are shown. |
 | Files page is metadata-only | No binary upload or download. The page shows a persistent notice bar. |
 | Theme not synced to backend | Theme selection is saved to `localStorage` on the user's device only. A school-wide default theme setting is a Phase-2 feature. The Appearance card says so explicitly. |
@@ -380,7 +380,7 @@ Report the following as **known Phase-2 scope**, not bugs:
 | No parent or student portal | Parent/student access is Phase 2 |
 | No button to upload a file or photo | Binary upload is Phase 2 |
 | Dashboard shows no statistics or charts | Dashboard content is Phase 2 |
-| Student/staff numbers not auto-filled | Auto-generation from sequences is Phase 2 |
+| Numbers appearing that were not typed | Admission numbers always auto-assign; student/staff numbers auto-generate when left blank (Phase 1B) |
 | Theme setting does not apply to all users automatically | School-wide theme sync is Phase 2 |
 | A brief loading spinner before data appears | Normal — the app is fetching live data |
 | A brief flash of the default theme on first load | Normal — SSR default hydrates to device preference on mount |

@@ -2,15 +2,7 @@
 
 import { useMutation, useQueryClient, type UseMutationOptions } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { isAxiosError } from 'axios';
-
-function extractMessage(error: unknown): string {
-  if (isAxiosError(error)) {
-    return error.response?.data?.message ?? error.message ?? 'Something went wrong.';
-  }
-  if (error instanceof Error) return error.message;
-  return 'Something went wrong.';
-}
+import { apiErrorMessage } from '@/lib/api/errors';
 
 interface UseApiMutationOptions<TData, TVariables> extends
   Omit<UseMutationOptions<TData, unknown, TVariables>, 'onSuccess' | 'onError'> {
@@ -39,7 +31,9 @@ export function useApiMutation<TData, TVariables>(
       onSuccess?.(data, variables);
     },
     onError: (error) => {
-      toast.error(extractMessage(error));
+      // apiErrorMessage unpacks the backend's `errors` array, so field-level
+      // validation messages reach the user instead of "Validation failed".
+      toast.error(apiErrorMessage(error));
       onError?.(error);
     },
   });

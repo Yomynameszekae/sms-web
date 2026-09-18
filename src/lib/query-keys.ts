@@ -26,7 +26,7 @@ export const queryKeys = {
   },
   levels: {
     all: ['levels'] as const,
-    list: () => [...queryKeys.levels.all, 'list'] as const,
+    list: (params?: object) => [...queryKeys.levels.all, 'list', params ?? {}] as const,
     detail: (id: string) => [...queryKeys.levels.all, id] as const,
   },
   staff: {

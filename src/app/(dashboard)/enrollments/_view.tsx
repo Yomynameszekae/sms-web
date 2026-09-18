@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, LogOut } from 'lucide-react';
@@ -12,6 +12,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { EmptyTable } from '@/components/shared/empty-table';
 import { FormDialog, FormFooter } from '@/components/shared/form-dialog';
+import { SearchableSelect } from '@/components/shared/searchable-select';
 import { Pagination } from '@/components/shared/pagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,9 +28,11 @@ import { studentsApi } from '@/lib/api/endpoints/students';
 import { classroomsApi } from '@/lib/api/endpoints/classrooms';
 import { academicYearsApi } from '@/lib/api/endpoints/academic-years';
 import { useApiMutation } from '@/hooks/use-api-mutation';
+import { apiErrorMessage, applyFieldErrors } from '@/lib/api/errors';
 import { queryKeys } from '@/lib/query-keys';
+import { formatDateOnly, todayIso } from '@/lib/date';
 import type {
-  Enrollment, EnrollmentStatus, CurriculumScope,
+  Enrollment, EnrollmentStatus, CurriculumCode,
   CreateEnrollmentPayload, WithdrawEnrollmentPayload,
 } from '@/types/api';
 
@@ -38,21 +41,28 @@ const STATUS_VARIANT: Record<EnrollmentStatus, StatusVariant> = {
   withdrawn:   'inactive',
   transferred: 'pending',
   completed:   'closed',
+  graduated:   'closed',
 };
 const STATUS_LABEL: Record<EnrollmentStatus, string> = {
   active:      'Active',
   withdrawn:   'Withdrawn',
   transferred: 'Transferred',
   completed:   'Completed',
+  graduated:   'Graduated',
 };
 
-const CURRICULUM_OPTIONS: CurriculumScope[] = ['GES_NACCA', 'ABEKA', 'BOTH'];
+// An enrollment sits on ONE curriculum — 'BOTH' is an admission-interest value
+// and is rejected by the backend's enrollment enum.
+const CURRICULUM_OPTIONS: CurriculumCode[] = ['GES_NACCA', 'ABEKA'];
+
+// The backend caps page size at 100; asking for more is a validation error.
+const STUDENT_LOOKUP_QUERY = { status: 'active', limit: 100 } as const;
 
 const createSchema = z.object({
   studentId:     z.string().min(1, 'Student is required'),
   classroomId:   z.string().min(1, 'Classroom is required'),
   academicYearId: z.string().min(1, 'Academic year is required'),
-  curriculumTrack: z.enum(['GES_NACCA', 'ABEKA', 'BOTH'] as const),
+  curriculumTrack: z.enum(['GES_NACCA', 'ABEKA'] as const),
   enrollmentDate: z.string().optional(),
 });
 type CreateForm = z.infer<typeof createSchema>;
@@ -65,17 +75,27 @@ type WithdrawForm = z.infer<typeof withdrawSchema>;
 
 const INVALIDATE = [queryKeys.enrollments.all];
 
-function CreateEnrollmentForm({
-  id, onSubmit,
-}: { id: string; onSubmit: (v: CreateForm) => void }) {
+function CreateEnrollmentDialog({
+  open, onOpenChange,
+}: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const form = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
-    defaultValues: { curriculumTrack: 'GES_NACCA' },
+    defaultValues: { curriculumTrack: 'GES_NACCA', enrollmentDate: todayIso() },
   });
 
-  const { data: students = [] } = useQuery({
-    queryKey: queryKeys.students.list({ limit: 200 }),
-    queryFn: () => studentsApi.list({ limit: 200 }).then((r) => r.data.data.items),
+  // Server-side student search: the list endpoint is capped at 100 rows, so a
+  // client-side filter would silently miss students beyond the first page.
+  const [studentSearch, setStudentSearch] = useState('');
+  const {
+    data: students = [],
+    isPending: studentsLoading,
+    error: studentsError,
+  } = useQuery({
+    queryKey: queryKeys.students.list({ ...STUDENT_LOOKUP_QUERY, search: studentSearch }),
+    queryFn: () =>
+      studentsApi
+        .list({ ...STUDENT_LOOKUP_QUERY, ...(studentSearch ? { search: studentSearch } : {}) })
+        .then((r) => r.data.data.items),
   });
   const { data: classrooms = [] } = useQuery({
     queryKey: queryKeys.classrooms.list(),
@@ -86,61 +106,143 @@ function CreateEnrollmentForm({
     queryFn: () => academicYearsApi.list().then((r) => r.data.data),
   });
 
+  const { mutate, isPending } = useApiMutation<unknown, CreateEnrollmentPayload>({
+    mutationFn: (p) => enrollmentsApi.create(p).then((r) => r.data.data),
+    successMessage: 'Enrollment created.',
+    invalidateKeys: INVALIDATE,
+    onSuccess: () => onOpenChange(false),
+    onError: (error) => { applyFieldErrors(form, error); },
+  });
+
+  const noStudents = !studentsLoading && !studentsError && !students.length && !studentSearch;
+
+  const selectedYearId = useWatch({ control: form.control, name: 'academicYearId' });
+  // Item 1: only classrooms of the selected academic year are offered. The
+  // backend guards this regardless — the filter is convenience.
+  const classroomOptions = classrooms
+    .filter((c) => c.isActive && (!selectedYearId || c.academicYearId === selectedYearId))
+    .map((c) => ({ value: c.id, label: c.displayName }));
+
   return (
-    <form id={id} onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-      <div className="space-y-1.5">
-        <Label htmlFor="enr-student">Student *</Label>
-        <Select id="enr-student" {...form.register('studentId')}>
-          <option value="">Select student…</option>
-          {students.filter((s) => s.status === 'active').map((s) => (
-            <option key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.studentNumber})</option>
-          ))}
-        </Select>
-        {form.formState.errors.studentId && (
-          <p className="text-xs text-destructive">{form.formState.errors.studentId.message}</p>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="New Enrollment"
+      maxWidth="max-w-lg"
+      footer={<FormFooter onCancel={() => onOpenChange(false)} isPending={isPending} formId="enr-create-form" submitLabel="Enroll" />}
+    >
+      <form
+        id="enr-create-form"
+        onSubmit={form.handleSubmit((v) =>
+          mutate({
+            studentId: v.studentId,
+            classroomId: v.classroomId,
+            academicYearId: v.academicYearId,
+            curriculumTrack: v.curriculumTrack,
+            enrollmentDate: v.enrollmentDate || undefined,
+          })
         )}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
+        className="space-y-3"
+      >
         <div className="space-y-1.5">
-          <Label htmlFor="enr-classroom">Classroom *</Label>
-          <Select id="enr-classroom" {...form.register('classroomId')}>
-            <option value="">Select classroom…</option>
-            {classrooms.filter((c) => c.isActive).map((c) => (
-              <option key={c.id} value={c.id}>{c.displayName}</option>
-            ))}
-          </Select>
-          {form.formState.errors.classroomId && (
-            <p className="text-xs text-destructive">{form.formState.errors.classroomId.message}</p>
+          <Label htmlFor="enr-student">Student *</Label>
+          <Controller
+            control={form.control}
+            name="studentId"
+            render={({ field }) => (
+              <SearchableSelect
+                id="enr-student"
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                disabled={!!studentsError || noStudents}
+                loading={studentsLoading}
+                onSearch={setStudentSearch}
+                placeholder={
+                  studentsError ? 'Students unavailable'
+                  : noStudents ? 'No eligible students'
+                  : 'Select student…'
+                }
+                options={students.map((st) => ({
+                  value: st.id,
+                  label: `${st.firstName} ${st.lastName} (${st.studentNumber})`,
+                }))}
+                emptyMessage={(q) => (q ? `No students match '${q}'` : 'No eligible students')}
+                aria-invalid={!!form.formState.errors.studentId}
+              />
+            )}
+          />
+          {studentsError && (
+            <p className="text-xs text-destructive">
+              Could not load students — {apiErrorMessage(studentsError)}
+            </p>
+          )}
+          {noStudents && (
+            <p className="text-xs text-muted-foreground">
+              Only students with an Active status can be enrolled.
+            </p>
+          )}
+          {form.formState.errors.studentId && (
+            <p className="text-xs text-destructive">{form.formState.errors.studentId.message}</p>
           )}
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="enr-year">Academic Year *</Label>
-          <Select id="enr-year" {...form.register('academicYearId')}>
-            <option value="">Select year…</option>
-            {years.map((y) => (
-              <option key={y.id} value={y.id}>{y.label}</option>
-            ))}
-          </Select>
-          {form.formState.errors.academicYearId && (
-            <p className="text-xs text-destructive">{form.formState.errors.academicYearId.message}</p>
-          )}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="enr-classroom">Classroom *</Label>
+            <Controller
+              control={form.control}
+              name="classroomId"
+              render={({ field }) => (
+                <SearchableSelect
+                  id="enr-classroom"
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  placeholder="Select classroom…"
+                  options={classroomOptions}
+                  emptyMessage={(q) =>
+                    q ? `No classrooms match '${q}'` : 'No classrooms in the selected year'}
+                  aria-invalid={!!form.formState.errors.classroomId}
+                />
+              )}
+            />
+            {form.formState.errors.classroomId && (
+              <p className="text-xs text-destructive">{form.formState.errors.classroomId.message}</p>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="enr-year">Academic Year *</Label>
+            <Select id="enr-year" {...form.register('academicYearId')}>
+              <option value="">Select year…</option>
+              {years.map((y) => (
+                <option key={y.id} value={y.id}>{y.label}</option>
+              ))}
+            </Select>
+            {form.formState.errors.academicYearId && (
+              <p className="text-xs text-destructive">{form.formState.errors.academicYearId.message}</p>
+            )}
+          </div>
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="enr-track">Curriculum Track *</Label>
-          <Select id="enr-track" {...form.register('curriculumTrack')}>
-            {CURRICULUM_OPTIONS.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </Select>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="enr-track">Curriculum Track *</Label>
+            <Select id="enr-track" {...form.register('curriculumTrack')}>
+              {CURRICULUM_OPTIONS.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </Select>
+            {form.formState.errors.curriculumTrack && (
+              <p className="text-xs text-destructive">{form.formState.errors.curriculumTrack.message}</p>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="enr-date">Enrollment Date</Label>
+            <Input id="enr-date" type="date" {...form.register('enrollmentDate')} />
+            {form.formState.errors.enrollmentDate && (
+              <p className="text-xs text-destructive">{form.formState.errors.enrollmentDate.message}</p>
+            )}
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="enr-date">Enrollment Date</Label>
-          <Input id="enr-date" type="date" {...form.register('enrollmentDate')} />
-        </div>
-      </div>
-    </form>
+      </form>
+    </FormDialog>
   );
 }
 
@@ -149,7 +251,7 @@ function WithdrawDialog({
 }: { enrollment: Enrollment; open: boolean; onOpenChange: (v: boolean) => void }) {
   const form = useForm<WithdrawForm>({
     resolver: zodResolver(withdrawSchema),
-    defaultValues: { exitDate: new Date().toISOString().slice(0, 10) },
+    defaultValues: { exitDate: todayIso() },
   });
 
   const { mutate, isPending } = useApiMutation<unknown, { id: string } & WithdrawEnrollmentPayload>({
@@ -210,13 +312,6 @@ export function EnrollmentsView() {
     queryFn: () => academicYearsApi.list().then((r) => r.data.data),
   });
 
-  const { mutate: create, isPending: creating } = useApiMutation<unknown, CreateEnrollmentPayload>({
-    mutationFn: (p) => enrollmentsApi.create(p).then((r) => r.data.data),
-    successMessage: 'Enrollment created.',
-    invalidateKeys: INVALIDATE,
-    onSuccess: () => setCreateOpen(false),
-  });
-
   const classroomMap = Object.fromEntries(classrooms.map((c) => [c.id, c.displayName]));
   const yearMap = Object.fromEntries(years.map((y) => [y.id, y.label]));
 
@@ -244,7 +339,7 @@ export function EnrollmentsView() {
           className="max-w-[160px]"
         >
           <option value="">All statuses</option>
-          {(['active', 'withdrawn', 'transferred', 'completed'] as EnrollmentStatus[]).map((s) => (
+          {(['active', 'withdrawn', 'transferred', 'completed', 'graduated'] as EnrollmentStatus[]).map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
         </Select>
@@ -282,7 +377,7 @@ export function EnrollmentsView() {
                   <TableCell className="text-sm">{yearMap[e.academicYearId] ?? e.academicYearId.slice(0, 8)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{e.curriculumTrack}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {e.enrollmentDate ? new Date(e.enrollmentDate).toLocaleDateString('en-GB') : '—'}
+                    {formatDateOnly(e.enrollmentDate)}
                   </TableCell>
                   <TableCell>
                     <StatusBadge variant={STATUS_VARIANT[e.status]} label={STATUS_LABEL[e.status]} />
@@ -309,26 +404,9 @@ export function EnrollmentsView() {
         {pagination && <Pagination {...pagination} onPageChange={setPage} />}
       </Card>
 
-      <FormDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        title="New Enrollment"
-        maxWidth="max-w-lg"
-        footer={<FormFooter onCancel={() => setCreateOpen(false)} isPending={creating} formId="enr-create-form" submitLabel="Enroll" />}
-      >
-        <CreateEnrollmentForm
-          id="enr-create-form"
-          onSubmit={(v) =>
-            create({
-              studentId: v.studentId,
-              classroomId: v.classroomId,
-              academicYearId: v.academicYearId,
-              curriculumTrack: v.curriculumTrack,
-              enrollmentDate: v.enrollmentDate || undefined,
-            })
-          }
-        />
-      </FormDialog>
+      {createOpen && (
+        <CreateEnrollmentDialog open onOpenChange={setCreateOpen} />
+      )}
 
       {withdrawTarget && (
         <WithdrawDialog

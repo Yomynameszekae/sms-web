@@ -7,8 +7,10 @@ import type {
 } from '@/types/api';
 
 export const levelsApi = {
-  list: () =>
-    apiClient.get<ApiResponse<Level[]>>('/levels'),
+  list: (includeArchived?: boolean) =>
+    apiClient.get<ApiResponse<Level[]>>('/levels', {
+      params: includeArchived ? { includeArchived: true } : {},
+    }),
 
   get: (id: string) =>
     apiClient.get<ApiResponse<Level>>(`/levels/${id}`),
@@ -21,4 +23,7 @@ export const levelsApi = {
 
   archive: (id: string) =>
     apiClient.post<ApiResponse<Level>>(`/levels/${id}/archive`),
+
+  restore: (id: string) =>
+    apiClient.post<ApiResponse<Level>>(`/levels/${id}/restore`),
 };

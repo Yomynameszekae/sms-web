@@ -160,8 +160,15 @@ export interface UpdateAcademicYearPayload {
 
 // ─── Terms ────────────────────────────────────────────────────────────────────
 
-export type TermStatus = 'draft' | 'pending' | 'active' | 'closed';
+// Mirrors backend `TermStatus` exactly — there is no 'pending' in the API.
+export type TermStatus = 'draft' | 'active' | 'closed';
+/** What a school/classroom/admission may offer or be interested in. */
 export type CurriculumScope = 'GES_NACCA' | 'ABEKA' | 'BOTH';
+/**
+ * A single curriculum a child is actually taught on. Enrollments track one
+ * curriculum, so 'BOTH' is not a valid value here — the backend rejects it.
+ */
+export type CurriculumCode = 'GES_NACCA' | 'ABEKA';
 
 export interface Term {
   id: string;
@@ -273,7 +280,8 @@ export interface Staff {
 }
 
 export interface CreateStaffPayload {
-  staffNumber: string;
+  /** Blank → the backend auto-generates the next STF number. */
+  staffNumber?: string;
   firstName: string;
   lastName: string;
   phone?: string;
@@ -337,7 +345,10 @@ export interface UpdateClassroomPayload {
 // ─── Students ─────────────────────────────────────────────────────────────────
 
 export type Gender = 'male' | 'female' | 'other';
-export type StudentStatus = 'active' | 'withdrawn' | 'archived';
+// The backend has no separate student-status enum — Student.status is an
+// EnrollmentStatus column. 'archived' was never a real value: archiving sets
+// status='withdrawn' plus an archivedAt timestamp.
+export type StudentStatus = EnrollmentStatus;
 
 export interface Student {
   id: string;
@@ -364,7 +375,8 @@ export interface Student {
 }
 
 export interface CreateStudentPayload {
-  studentNumber: string;
+  /** Blank → the backend auto-generates the next STU number. */
+  studentNumber?: string;
   firstName: string;
   middleName?: string;
   lastName: string;
@@ -471,8 +483,11 @@ export interface UpdateStudentGuardianPayload {
 
 // ─── Admissions ───────────────────────────────────────────────────────────────
 
+// Mirrors backend `AdmissionStatus` exactly. 'withdrawn' (family declines the
+// school — distinct from 'rejected', school declines the family) was added to
+// the backend enum in Phase 1B.
 export type AdmissionStatus =
-  | 'enquiry' | 'application' | 'offered' | 'enrolled' | 'withdrawn' | 'rejected';
+  | 'enquiry' | 'application' | 'offered' | 'enrolled' | 'rejected' | 'withdrawn';
 
 export interface Admission {
   id: string;
@@ -512,13 +527,14 @@ export interface UpdateAdmissionPayload {
 export interface EnrollAdmissionPayload {
   classroomId: string;
   academicYearId: string;
-  curriculumTrack: CurriculumScope;
+  curriculumTrack: CurriculumCode;
   studentId?: string;
 }
 
 // ─── Enrollments ─────────────────────────────────────────────────────────────
 
-export type EnrollmentStatus = 'active' | 'withdrawn' | 'transferred' | 'completed';
+// Mirrors backend `EnrollmentStatus` exactly (Student.status shares this enum).
+export type EnrollmentStatus = 'active' | 'transferred' | 'withdrawn' | 'completed' | 'graduated';
 
 export interface Enrollment {
   id: string;
@@ -526,7 +542,7 @@ export interface Enrollment {
   studentId: string;
   classroomId: string;
   academicYearId: string;
-  curriculumTrack: CurriculumScope;
+  curriculumTrack: CurriculumCode;
   enrollmentDate: string | null;
   status: EnrollmentStatus;
   exitDate: string | null;
@@ -541,7 +557,7 @@ export interface CreateEnrollmentPayload {
   studentId: string;
   classroomId: string;
   academicYearId: string;
-  curriculumTrack: CurriculumScope;
+  curriculumTrack: CurriculumCode;
   enrollmentDate?: string;
 }
 
@@ -586,7 +602,10 @@ export interface CreateFilePayload {
   storageBucket: string;
   storageKey: string;
   category?: string;
-  isPublic?: boolean;
+  /**
+   * NOT accepted by the backend — CreateFileDto has no isPublic and the
+   * service always stores false. Sending it fails the whole request.
+   */
   checksumSha256?: string;
 }
 

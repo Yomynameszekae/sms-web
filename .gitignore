@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# …but the example must stay trackable — it documents required keys
+!.env.example
 
 # vercel
 .vercel
@@ -43,9 +45,13 @@ next-env.d.ts
 # Generated screenshots (used to build PDF, not part of source)
 screenshots-guide/
 
-# Binary PDF artifacts (regenerable from source)
+# Binary PDF artifacts (regenerable from source via qa/build-user-guide-pdf.mjs)
 BRITE_SMS_PHASE_1_USER_GUIDE.pdf
-BRITE_SMS_TUTORIAL.pdf
+# Archived one-off exports (not regenerable, superseded — see archive/README.md)
+archive/*.pdf
 
 # Design prototype files (large, not part of deployable app)
 BriteRedesignFiles/
+
+# QA pass failure screenshots
+qa-failure-*.png

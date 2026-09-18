@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
+import { apiErrorMessage } from '@/lib/api/errors';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email address'),
@@ -33,10 +34,7 @@ export function LoginForm() {
     try {
       await login({ email: values.email, password: values.password });
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        'Login failed. Check your credentials and try again.';
-      toast.error(message);
+      toast.error(apiErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }

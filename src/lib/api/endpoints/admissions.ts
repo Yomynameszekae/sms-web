@@ -35,6 +35,21 @@ export const admissionsApi = {
   offer: (id: string) =>
     apiClient.post<ApiResponse<Admission>>(`/admissions/${id}/offer`),
 
+  apply: (id: string) =>
+    apiClient.post<ApiResponse<Admission>>(`/admissions/${id}/apply`),
+
+  revertOffer: (id: string) =>
+    apiClient.post<ApiResponse<Admission>>(`/admissions/${id}/revert-offer`),
+
+  reject: (id: string, notes?: string) =>
+    apiClient.post<ApiResponse<Admission>>(`/admissions/${id}/reject`, notes ? { notes } : {}),
+
+  withdraw: (id: string, notes?: string) =>
+    apiClient.post<ApiResponse<Admission>>(`/admissions/${id}/withdraw`, notes ? { notes } : {}),
+
+  revertEnrollment: (id: string) =>
+    apiClient.post<ApiResponse<Admission>>(`/admissions/${id}/revert-enrollment`),
+
   enroll: (id: string, payload: EnrollAdmissionPayload) =>
     apiClient.post<ApiResponse<Enrollment>>(`/admissions/${id}/enroll`, payload),
 };

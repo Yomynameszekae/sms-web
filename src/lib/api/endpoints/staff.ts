@@ -12,6 +12,8 @@ import type {
 export interface StaffQuery {
   status?: StaffStatus;
   roleCategory?: StaffRoleCategory;
+  /** Partial, case-insensitive match on first name, last name, staff number. */
+  search?: string;
   page?: number;
   limit?: number;
 }
@@ -31,4 +33,7 @@ export const staffApi = {
 
   archive: (id: string) =>
     apiClient.post<ApiResponse<Staff>>(`/staff/${id}/archive`),
+
+  restore: (id: string) =>
+    apiClient.post<ApiResponse<Staff>>(`/staff/${id}/restore`),
 };

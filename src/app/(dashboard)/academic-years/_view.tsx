@@ -22,10 +22,11 @@ import {
 import { academicYearsApi } from '@/lib/api/endpoints/academic-years';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { queryKeys } from '@/lib/query-keys';
+import { formatDateOnly, DATE_ONLY_LONG } from '@/lib/date';
 import type { AcademicYear, CreateAcademicYearPayload, UpdateAcademicYearPayload } from '@/types/api';
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return formatDateOnly(iso, DATE_ONLY_LONG);
 }
 
 const schema = z.object({

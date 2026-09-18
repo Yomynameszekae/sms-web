@@ -34,6 +34,9 @@ export const studentsApi = {
   archive: (id: string) =>
     apiClient.post<ApiResponse<Student>>(`/students/${id}/archive`),
 
+  restore: (id: string) =>
+    apiClient.post<ApiResponse<Student>>(`/students/${id}/restore`),
+
   getGuardians: (id: string) =>
     apiClient.get<ApiResponse<StudentGuardian[]>>(`/students/${id}/guardians`),
 

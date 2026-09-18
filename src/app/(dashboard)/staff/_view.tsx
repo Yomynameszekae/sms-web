@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil, Archive } from 'lucide-react';
+import { Plus, Pencil, Archive, ArchiveRestore } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -58,7 +58,7 @@ const sharedFields = {
   ntcRegistrationNumber: z.string().optional(),
   joinedAt:    z.string().optional(),
 };
-const createSchema = z.object({ staffNumber: z.string().min(1, 'Staff number is required'), ...sharedFields });
+const createSchema = z.object({ staffNumber: z.string().optional(), ...sharedFields });
 const updateSchema = z.object(sharedFields);
 type CreateForm = z.infer<typeof createSchema>;
 type UpdateForm = z.infer<typeof updateSchema>;
@@ -138,8 +138,8 @@ function CreateStaffForm({
   return (
     <form id={id} onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
       <div className="space-y-1.5">
-        <Label htmlFor="sf-num">Staff Number *</Label>
-        <Input id="sf-num" placeholder="e.g. STF-001" {...form.register('staffNumber')} />
+        <Label htmlFor="sf-num">Staff Number</Label>
+        <Input id="sf-num" placeholder="Leave blank to auto-generate" {...form.register('staffNumber')} />
         {form.formState.errors.staffNumber && (
           <p className="text-xs text-destructive">{form.formState.errors.staffNumber.message}</p>
         )}
@@ -200,6 +200,12 @@ export function StaffView() {
     invalidateKeys: INVALIDATE,
   });
 
+  const { mutate: restore } = useApiMutation<unknown, string>({
+    mutationFn: (id) => staffApi.restore(id).then((r) => r.data.data),
+    successMessage: 'Staff member restored.',
+    invalidateKeys: INVALIDATE,
+  });
+
   const items = data?.items ?? [];
   const pagination = data?.pagination;
   const COLS = 7;
@@ -208,7 +214,7 @@ export function StaffView() {
     <div className="space-y-6">
       <PageHeader
         title="Staff"
-        description="Teaching and support staff records. Archiving is permanent in Phase 1 — archived staff cannot be restored."
+        description="Teaching and support staff records. Archived staff can be restored — restore returns them to Active."
         action={
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -264,9 +270,20 @@ export function StaffView() {
                         <Button
                           size="sm" variant="ghost"
                           className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                          title="Archive"
                           onClick={() => archive(s.id)}
                         >
                           <Archive className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {s.archivedAt && (
+                        <Button
+                          size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                          title="Restore"
+                          onClick={() => restore(s.id)}
+                        >
+                          <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
+                          Restore
                         </Button>
                       )}
                     </div>
@@ -290,7 +307,7 @@ export function StaffView() {
           id="staff-create-form"
           onSubmit={(v) =>
             create({
-              staffNumber: v.staffNumber,
+              staffNumber: v.staffNumber || undefined,
               firstName: v.firstName, lastName: v.lastName,
               phone: v.phone || undefined, email: v.email || undefined,
               roleCategory: v.roleCategory,

@@ -10,7 +10,7 @@
 
 Phase 1 of the Brite SMS frontend is complete. All 19 application routes are implemented, API-backed, and verified against the live backend. The application covers the full Phase 1 backend scope: school configuration, academic structure, people management (staff, students, guardians), admissions pipeline, enrollments, file metadata, and audit logging.
 
-A full browser QA pass was completed using Playwright — 23 of 23 checks passed. Two bugs were discovered and fixed during QA. The codebase builds cleanly with zero TypeScript errors and zero lint warnings.
+A browser QA pass was run at completion using Playwright — 23 of 23 checks passed, and two bugs found during it were fixed. **That figure overstated what was verified**: the checks confirmed pages loaded and dialogs opened, but never submitted a form, and four flows later proved broken end-to-end (see the correction in §7). QA has since been rewritten to submit every form and assert the created record — currently **63 submit-and-assert checks plus 16 error-state checks, all passing**. The codebase builds cleanly with zero TypeScript errors and zero lint warnings.
 
 The interface is intentionally minimal and functional. The current design is not final — a UI redesign is planned for a later phase. Stakeholders should evaluate functionality and data flows, not visual polish.
 
@@ -173,7 +173,21 @@ Button, Input, Label, Select, Textarea, Checkbox, Card, Table, Dialog, Badge, Sk
 
 **Method:** Playwright browser automation against the live dev server and live backend.
 
-**Result: 23/23 checks passed. 0 failures.**
+#### Correction (2026-08-14)
+
+The result originally recorded here — *23/23 checks passed, 0 failures* — asserted **rendering, not
+function**. Every check verified that a page loaded, a list showed rows, or a dialog opened; none
+submitted a form. Four flows passed this table while being broken for every user on every attempt:
+the New Enrollment student dropdown (always empty), Enroll from both /enrollments and /admissions
+(always rejected, surfaced only as "Validation failed"), New Term with Curriculum Scope at its
+default (silently did nothing), and New File Record (every submission rejected). All four are fixed;
+the causes are recorded in the redesign completion report, §9.
+
+The replacement QA suite (`sms-web/qa/`) submits every create/lifecycle dialog with valid data,
+asserts the created record appears, and includes a negative case per form asserting a *specific*
+rejection message. Current position: **`qa-pass.mjs` 63/63, `error-states-check.mjs` 16/16**.
+
+**Original result (retained for the record, superseded above): 23/23 checks passed. 0 failures.**
 
 | # | Check | Result |
 |---|-------|--------|
@@ -324,7 +338,7 @@ Work through these flows in order. Each builds on the previous and exercises the
 | Auth flow verified end-to-end | ✅ |
 | Build clean (0 TypeScript errors) | ✅ |
 | Lint clean (0 warnings) | ✅ |
-| Browser QA passed (23/23) | ✅ |
+| Browser QA passed (originally 23/23 — render-only, superseded; now 63/63 submit-and-assert + 16/16 error-state, see §7) | ✅ |
 | Bugs found in QA fixed | ✅ |
 | Hard browser refresh works | ✅ |
 | API error states visible | ✅ |
@@ -353,3 +367,33 @@ These should be taken in sequence, gating each on the previous:
 4. **Attendance module planning** — Can begin in parallel with UI redesign, once stakeholder testing has confirmed the core data model (students, classrooms, enrollments, terms) is correct. Do not start implementation before the model is signed off.
 
 5. **Phase 2 scoping** — Binary file upload, dashboard stats, role-based UI gating, student number auto-generation, and other deferred features can be scoped once Phase 1 is stakeholder-approved.
+
+---
+
+## Phase 1B Addendum (2026-08-14)
+
+Three backend capabilities landed after this report was signed:
+
+1. **Admission numbers are auto-assigned at creation** from the document
+   sequence, unique per school, editable afterwards. Student and staff numbers
+   auto-generate when left blank. The dash placeholder is gone.
+2. **The admission pipeline is a validated state machine** — six statuses
+   (`application` was always real but undocumented; `withdrawn` was added to
+   the enum), dedicated transition endpoints with per-transition cleanup and
+   audit entries, and reversals: offer → application, and enrolled → offered
+   once the enrollment has been withdrawn.
+3. **Archive is reversible** for levels, classrooms, staff, students, and
+   guardians (`POST :id/restore`, fixed restore states). Files stay one-way.
+   Enrollment creation now refuses academic years that have already ended.
+
+**Correction to the record:** this report and the user guide previously stated
+that "reversing an offer is not available in Phase 1." **That was never
+true.** `PATCH /admissions/:id` accepted arbitrary `status` values with no
+transition validation and no field cleanup for the whole of Phase 1 — any
+status could be set backwards at any time, silently and destructively. Phase
+1B did not so much *add* reversal as replace an undocumented, unguarded
+bypass with a validated state machine and remove `status` from the PATCH
+surface entirely. Reversal-as-a-feature is new; mutability was not.
+
+Current verification: backend jest 149, `qa/qa-pass.mjs` 95 submit-and-assert
+checks, `qa/error-states-check.mjs` 16 — all passing.

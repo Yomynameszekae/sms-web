@@ -2,17 +2,17 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link2, Pencil, Trash2, Star } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
 import { FormDialog, FormFooter } from '@/components/shared/form-dialog';
+import { SearchableSelect } from '@/components/shared/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,12 +42,23 @@ const updateLinkSchema = z.object({
 });
 type UpdateLinkForm = z.infer<typeof updateLinkSchema>;
 
-const FLAG_DEFAULTS = { isPrimary: false, isEmergencyContact: false, canReceiveSms: true, canAccessPortal: false };
+/**
+ * `canReceiveSms` defaults to FALSE, matching the backend.
+ *
+ * It can only be true once the guardian's SMS consent is recorded on their own
+ * record, so defaulting it on offered a setting the server correctly refuses —
+ * every link creation failed with a 409 until this matched.
+ */
+const FLAG_DEFAULTS = { isPrimary: false, isEmergencyContact: false, canReceiveSms: false, canAccessPortal: false };
 
 const FLAG_FIELDS = [
   { id: 'lf-primary',   name: 'isPrimary' as const,          label: 'Primary guardian' },
   { id: 'lf-emergency', name: 'isEmergencyContact' as const,  label: 'Emergency contact' },
-  { id: 'lf-sms',       name: 'canReceiveSms' as const,       label: 'Can receive SMS' },
+  {
+    id: 'lf-sms', name: 'canReceiveSms' as const,
+    label: 'Can receive SMS about this child',
+    hint: 'Only available once SMS consent is recorded on the guardian’s own record.',
+  },
   { id: 'lf-portal',    name: 'canAccessPortal' as const,     label: 'Can access parent portal' },
 ];
 
@@ -55,20 +66,40 @@ function CreateLinkForm({
   id, onSubmit,
 }: { id: string; onSubmit: (v: LinkForm) => void }) {
   const form = useForm<LinkForm>({ resolver: zodResolver(linkSchema), defaultValues: { guardianId: '', ...FLAG_DEFAULTS } });
-  const { data: guardiansData } = useQuery({
-    queryKey: queryKeys.guardians.list(),
-    queryFn: () => guardiansApi.list({ limit: 100 }).then((r) => r.data.data.items),
+  // Server-side search — the guardians list is capped at 100 rows, so a
+  // client-side filter would miss guardians beyond the first page.
+  const [guardianSearch, setGuardianSearch] = useState('');
+  const { data: guardiansData, isPending: guardiansLoading } = useQuery({
+    queryKey: queryKeys.guardians.list({ limit: 100, search: guardianSearch }),
+    queryFn: () =>
+      guardiansApi
+        .list({ limit: 100, ...(guardianSearch ? { search: guardianSearch } : {}) })
+        .then((r) => r.data.data.items),
   });
   return (
     <form id={id} onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-1.5">
         <Label htmlFor="lf-guardian">Guardian *</Label>
-        <Select id="lf-guardian" {...form.register('guardianId')}>
-          <option value="">Select guardian…</option>
-          {guardiansData?.map((g) => (
-            <option key={g.id} value={g.id}>{g.firstName} {g.lastName} — {g.phonePrimary}</option>
-          ))}
-        </Select>
+        <Controller
+          control={form.control}
+          name="guardianId"
+          render={({ field }) => (
+            <SearchableSelect
+              id="lf-guardian"
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              loading={guardiansLoading}
+              onSearch={setGuardianSearch}
+              placeholder="Select guardian…"
+              options={(guardiansData ?? []).map((g) => ({
+                value: g.id,
+                label: `${g.firstName} ${g.lastName} — ${g.phonePrimary}`,
+              }))}
+              emptyMessage={(q) => (q ? `No guardians match '${q}'` : 'No guardians yet')}
+              aria-invalid={!!form.formState.errors.guardianId}
+            />
+          )}
+        />
         {form.formState.errors.guardianId && (
           <p className="text-xs text-destructive">{form.formState.errors.guardianId.message}</p>
         )}
@@ -80,7 +111,14 @@ function CreateLinkForm({
       </div>
       <div className="space-y-2 pt-1">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Permissions</p>
-        {FLAG_FIELDS.map((f) => <Checkbox key={f.id} id={f.id} label={f.label} {...form.register(f.name)} />)}
+        {FLAG_FIELDS.map((f) => (
+          <div key={f.id} className="space-y-0.5">
+            <Checkbox id={f.id} label={f.label} {...form.register(f.name)} />
+            {'hint' in f && f.hint && (
+              <p className="pl-6 text-xs text-muted-foreground">{f.hint}</p>
+            )}
+          </div>
+        ))}
       </div>
     </form>
   );
@@ -99,7 +137,14 @@ function EditLinkForm({
       </div>
       <div className="space-y-2 pt-1">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Permissions</p>
-        {FLAG_FIELDS.map((f) => <Checkbox key={f.id} id={f.id} label={f.label} {...form.register(f.name)} />)}
+        {FLAG_FIELDS.map((f) => (
+          <div key={f.id} className="space-y-0.5">
+            <Checkbox id={f.id} label={f.label} {...form.register(f.name)} />
+            {'hint' in f && f.hint && (
+              <p className="pl-6 text-xs text-muted-foreground">{f.hint}</p>
+            )}
+          </div>
+        ))}
       </div>
     </form>
   );

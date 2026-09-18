@@ -12,7 +12,7 @@ The Phase 1 frontend redesign is complete. The existing API-backed Next.js appli
 
 All 16 Phase-1 routes now render with a consistent, theme-aware layout: a redesigned 266px sidebar with non-collapsible group labels, a topbar with school/year-term context, display-font page headers, sticky dialog footers, theme-aware status badges, and a full five-theme switcher accessible from School Settings → Appearance.
 
-A full automated QA pass was run: **42 checks passed, 0 failures**.
+An automated QA pass was run at the time of the redesign: 42 checks passed, 0 failures. **That pass overstated the position** — it asserted only that dialogs rendered and never submitted a single form, so four flows that were entirely broken passed it. Those bugs are listed in §9 and have since been fixed. QA has been rewritten to submit every form and assert the resulting record; it now runs **63 submit-and-assert checks plus 16 error-state checks**. See §8.
 
 ---
 
@@ -144,8 +144,39 @@ All 16 create/edit dialogs were refactored so the **Cancel + Save footer lives i
 
 ### Automated browser QA (Playwright, Chromium headless)
 
-**Pass 1: 42 checks — 42 PASS, 0 FAIL**  
-**Pass 2: All warnings from Pass 1 resolved and confirmed PASS**
+#### Correction (2026-08-14)
+
+The original result recorded here — *"Pass 1: 42 checks — 42 PASS, 0 FAIL; Pass 2: all warnings
+resolved and confirmed PASS"* — was **not a valid certification of the application's functionality**,
+and the tables in this section should be read with that in mind.
+
+The 42 checks covered auth, theming, route rendering, and whether dialogs opened with the right title,
+footer, and field types. **No check ever submitted a form.** Four Phase 1 flows were therefore certified
+as passing while being 100% broken for every user, every time:
+
+| Flow | What actually happened | Found |
+|------|------------------------|-------|
+| /enrollments → New Enrollment → Student dropdown | Empty except the placeholder | Stakeholder testing |
+| Enroll (from /enrollments **and** /admissions) | Rejected with a bare "Validation failed" toast | Stakeholder testing |
+| New Term with Curriculum Scope left at its default | Create did nothing at all, with no error shown | QA rewrite |
+| New File Record | Every submission rejected by the backend | QA rewrite |
+
+The functional smoke-test table below is accurate about what it measured — *"New Enrollment opens, has
+'Enroll' submit button"* was true — but opening a dialog is not evidence that the flow works. All four
+bugs are documented in §9 and are fixed.
+
+**Current QA position (2026-08-14)**
+
+| Suite | Checks | Result |
+|-------|--------|--------|
+| `qa/qa-pass.mjs` — every create/lifecycle dialog submitted with valid data, created record asserted, plus 14 negative cases asserting a specific error message | 63 | 63 PASS, 0 FAIL |
+| `qa/error-states-check.mjs` — shared error card across 5 views under connection-refused and a 500 with a body | 16 | 16 PASS, 0 FAIL |
+
+The QA script tags every record it creates with a per-run token and deletes them all afterwards; the
+final check asserts zero leftovers. Audit-log entries from a run cannot be removed — the `audit_logs`
+table has an immutability trigger — so they remain by design.
+
+**Original pass (retained for the record, superseded above)**
 
 #### Auth checks
 | Check | Result |
@@ -223,6 +254,54 @@ All 16 routes load with correct h1 and no crash or auth-redirect.
 
 ## 9. Bugs Found and Fixed During Redesign
 
+### Post-redesign — flows the original QA pass certified while broken (fixed 2026-08-13/14)
+
+- **Enrollment student dropdown was always empty** — the New Enrollment dialog requested
+  `/students?limit=200`, but the shared `PaginationDto` caps `limit` at 100, so the request returned
+  `400 {"message":"Validation failed","errors":["limit must not be greater than 100"]}`. The dialog
+  read only `data` from the query and never `error`, so the failure was silent and the select rendered
+  with just its placeholder. There was no way to create an enrollment from this screen. Fixed by
+  querying `{ status: 'active', limit: 100 }` and adding explicit loading / error / empty states.
+- **Enroll failed from both /enrollments and /admissions** — the frontend had a single
+  `CurriculumScope` type (`GES_NACCA | ABEKA | BOTH`) and used it for the enrollment curriculum
+  *track*, which the backend types as `CurriculumCode` (`GES_NACCA | ABEKA`). Choosing **BOTH** — an
+  option both dialogs offered — was rejected with `curriculumTrack must be one of the following
+  values: GES_NACCA, ABEKA`, surfaced to the user as a bare "Validation failed". Fixed by adding a
+  distinct `CurriculumCode` type and removing BOTH from both track selects. Curriculum *interest* on
+  an admission still correctly offers BOTH.
+- **New Term did nothing when Curriculum Scope was left at its default** — the field's schema was
+  `z.enum([...]).optional()`, which permits `undefined` but not the `''` that the select's default
+  "— Any —" option supplies. Submitting failed client-side validation, and because that field renders
+  no inline error, the dialog gave no feedback whatsoever. Any user who did not explicitly pick a
+  scope could not create a term. Fixed with `.or(z.literal(''))`, matching the idiom already used for
+  optional selects elsewhere.
+- **New File Record was rejected on every attempt** — the form sent `isPublic`, which `CreateFileDto`
+  does not declare; with `forbidNonWhitelisted: true` the whole request failed with
+  `property isPublic should not exist`. The backend refuses the field deliberately (`FilesService`
+  hardcodes `isPublic: false` and has a spec asserting it). Fixed by not sending the field; the
+  "Publicly accessible" checkbox, which promised control that does not exist, was subsequently removed.
+
+**Common cause:** none of these were visible without submitting a form. They are the direct reason QA
+was rewritten to submit-and-assert rather than open-and-inspect.
+
+### Also corrected while fixing the above
+
+- **"Validation failed" was all any form ever showed** — the shared mutation error handler read only
+  `data.message` and discarded the backend's `errors` array. Field-level messages are now surfaced in
+  the toast and mapped onto the matching form fields via React Hook Form's `setError`.
+- **Withdraw Enrollment rejected a blank exit reason** — `WithdrawEnrollmentDto.exitReason` was
+  `@IsString()` with no `@IsOptional()`, while the UI documents and labels the field as optional.
+  Fixed in the backend DTO.
+- **Date-only fields could render a day early** — date-only values (DOB, enrolment date, term and
+  year start/end) were formatted with `new Date(iso).toLocaleDateString()`, which shifts a
+  midnight-UTC date backwards for any viewer behind UTC. Now formatted UTC-safe. Real timestamps
+  (audit log times, `archivedAt`, `enrolledAt`) continue to display in local time.
+- **Duplicate-enrolment message named the wrong rule** — it blamed the curriculum track, but the
+  binding constraint is `uq_one_active_enrollment_per_student_year`, one active enrolment per student
+  per academic year regardless of track.
+- **Student search ignored student numbers** — both search boxes offer "name or number" but the
+  backend filtered on first and last name only.
+
 ### Stage 5
 - **Double-border on table cards** — tables inside `Card` components were showing two borders (card border + table outer border). Fixed by setting `Card` to `p-0 gap-0` and removing the redundant table-level border.
 - **Status badge variants for admissions** — `STATUS_VARIANT` was missing keys; fixed by mapping all `AdmissionStatus` values to named variants.
@@ -243,7 +322,7 @@ These are carryovers from the Phase-1 functional implementation and are **not re
 | `middleware.ts` deprecation warning | Next.js 16 prefers `proxy.ts`. Build warning only — no functional impact. |
 | Enrollment PATCH not exposed | Backend PATCH endpoint rejects all meaningful fields. Only Withdraw is a valid post-creation action. Intentional omission. |
 | No role-based UI gating | All authenticated users can see all pages. Backend enforces permissions. |
-| No auto-generated ID numbers | Student/staff numbers must be typed manually. Document sequence auto-fill is Phase 2. |
+| ~~No auto-generated ID numbers~~ (resolved in Phase 1B) | Admission numbers auto-assign at creation; student/staff numbers auto-generate when left blank. |
 | Dashboard summary stats not populated | `/dashboard` shows quick-action cards and a clearly-labelled Phase-2 preview strip. No fake numbers. |
 | Binary file upload | `/files` shows metadata only. Upload is Phase 2. Notice bar is visible. |
 | Theme not persisted to school settings | Theme is device-local (`localStorage`). School-wide theme sync is explicitly a Phase-2 task. The Appearance card says so. |
@@ -318,3 +397,33 @@ Walk key users (headteacher, admissions officer, admin) through the redesigned i
 
 *For technical questions about this report, see the individual stage notes in the memory files.*  
 *For the original functional implementation, see [PHASE_1_FRONTEND_COMPLETION_REPORT.md](PHASE_1_FRONTEND_COMPLETION_REPORT.md).*
+
+---
+
+## Phase 1B Addendum (2026-08-14)
+
+Three backend capabilities landed after this report was signed:
+
+1. **Admission numbers are auto-assigned at creation** from the document
+   sequence, unique per school, editable afterwards. Student and staff numbers
+   auto-generate when left blank. The dash placeholder is gone.
+2. **The admission pipeline is a validated state machine** — six statuses
+   (`application` was always real but undocumented; `withdrawn` was added to
+   the enum), dedicated transition endpoints with per-transition cleanup and
+   audit entries, and reversals: offer → application, and enrolled → offered
+   once the enrollment has been withdrawn.
+3. **Archive is reversible** for levels, classrooms, staff, students, and
+   guardians (`POST :id/restore`, fixed restore states). Files stay one-way.
+   Enrollment creation now refuses academic years that have already ended.
+
+**Correction to the record:** this report and the user guide previously stated
+that "reversing an offer is not available in Phase 1." **That was never
+true.** `PATCH /admissions/:id` accepted arbitrary `status` values with no
+transition validation and no field cleanup for the whole of Phase 1 — any
+status could be set backwards at any time, silently and destructively. Phase
+1B did not so much *add* reversal as replace an undocumented, unguarded
+bypass with a validated state machine and remove `status` from the PATCH
+surface entirely. Reversal-as-a-feature is new; mutability was not.
+
+Current verification: backend jest 149, `qa/qa-pass.mjs` 95 submit-and-assert
+checks, `qa/error-states-check.mjs` 16 — all passing.

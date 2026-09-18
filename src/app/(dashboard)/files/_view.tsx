@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
@@ -44,7 +43,6 @@ const fileSchema = z.object({
   storageBucket:    z.string().min(1, 'Storage bucket is required'),
   storageKey:       z.string().min(1, 'Storage key is required'),
   category:         z.string().optional(),
-  isPublic:         z.boolean().optional(),
 });
 type FileForm = z.infer<typeof fileSchema>;
 
@@ -55,7 +53,7 @@ function CreateFileForm({
 }: { id: string; onSubmit: (v: FileForm) => void }) {
   const form = useForm<FileForm>({
     resolver: zodResolver(fileSchema),
-    defaultValues: { ownerType: 'student', isPublic: false },
+    defaultValues: { ownerType: 'student' },
   });
 
   return (
@@ -117,7 +115,6 @@ function CreateFileForm({
           <p className="text-xs text-destructive">{form.formState.errors.storageKey.message}</p>
         )}
       </div>
-      <Checkbox id="ff-public" label="Publicly accessible" {...form.register('isPublic')} />
     </form>
   );
 }
@@ -261,7 +258,9 @@ export function FilesView() {
               storageBucket: v.storageBucket,
               storageKey: v.storageKey,
               category: v.category || undefined,
-              isPublic: v.isPublic,
+              // isPublic is deliberately NOT sent: the backend hardcodes
+              // isPublic = false and rejects the property outright
+              // (forbidNonWhitelisted), which failed every file create.
             })
           }
         />

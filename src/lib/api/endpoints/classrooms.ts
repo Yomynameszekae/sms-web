@@ -24,4 +24,7 @@ export const classroomsApi = {
 
   archive: (id: string) =>
     apiClient.post<ApiResponse<Classroom>>(`/classrooms/${id}/archive`),
+
+  restore: (id: string) =>
+    apiClient.post<ApiResponse<Classroom>>(`/classrooms/${id}/restore`),
 };

@@ -24,6 +24,7 @@ import { termsApi } from '@/lib/api/endpoints/terms';
 import { academicYearsApi } from '@/lib/api/endpoints/academic-years';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { queryKeys } from '@/lib/query-keys';
+import { formatDateOnly, DATE_ONLY_LONG } from '@/lib/date';
 import type {
   Term, TermStatus, CurriculumScope,
   CreateTermPayload, UpdateTermPayload,
@@ -33,7 +34,7 @@ import type {
 const CURRICULUM_SCOPES: CurriculumScope[] = ['GES_NACCA', 'ABEKA', 'BOTH'];
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return formatDateOnly(iso, DATE_ONLY_LONG);
 }
 
 const termSchema = z.object({
@@ -44,22 +45,23 @@ const termSchema = z.object({
   endDate:         z.string().min(1, 'End date is required'),
   examStartDate:   z.string().optional(),
   examEndDate:     z.string().optional(),
-  curriculumScope: z.enum(['GES_NACCA', 'ABEKA', 'BOTH']).optional(),
+  // The select's default option is '' ("— Any —"). Plain .optional() only
+  // permits undefined, so leaving the scope unset failed validation silently
+  // and the dialog did nothing on Create. '' is normalised away on submit.
+  curriculumScope: z.enum(['GES_NACCA', 'ABEKA', 'BOTH']).optional().or(z.literal('')),
 }).refine((d) => d.endDate > d.startDate, { message: 'End date must be after start date', path: ['endDate'] });
 
 type FormValues = z.infer<typeof termSchema>;
 
-const STATUS_VARIANT: Record<TermStatus, 'active' | 'pending' | 'closed' | 'inactive'> = {
-  draft:   'inactive',
-  pending: 'pending',
-  active:  'active',
-  closed:  'closed',
+const STATUS_VARIANT: Record<TermStatus, 'active' | 'closed' | 'inactive'> = {
+  draft:  'inactive',
+  active: 'active',
+  closed: 'closed',
 };
 const STATUS_LABEL: Record<TermStatus, string> = {
-  draft:   'Draft',
-  pending: 'Pending',
-  active:  'Active',
-  closed:  'Closed',
+  draft:  'Draft',
+  active: 'Active',
+  closed: 'Closed',
 };
 
 function TermForm({
@@ -270,7 +272,7 @@ export function TermsView() {
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      {(term.status === 'draft' || term.status === 'pending') && (
+                      {term.status === 'draft' && (
                         <Button
                           size="sm" variant="outline" className="h-7 px-2 text-xs"
                           onClick={() => activate(term.id)}

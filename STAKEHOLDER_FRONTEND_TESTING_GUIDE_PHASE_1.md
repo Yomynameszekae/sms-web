@@ -400,7 +400,8 @@ Document sequences control how ID numbers (student numbers, staff numbers, admis
 1. Click **New Term**.
 2. Select an academic year from the dropdown.
 3. Enter: Term Number `1`, Label `Term 1`, Start Date `2031-09-01`, End Date `2031-12-15`.
-4. Click **Save**.
+   (Exam dates and Curriculum Scope are optional — leaving Curriculum Scope on **— Any —** is valid.)
+4. Click **Create**.
 
 **What should happen:**
 - The new term appears in the table with status **Draft**.
@@ -411,7 +412,7 @@ Document sequences control how ID numbers (student numbers, staff numbers, admis
 #### Scenario C — Activate a term
 
 **What to do:**
-1. Find a term with status **Draft** or **Pending**.
+1. Find a term with status **Draft**.
 2. Click **Activate**.
 
 **What should happen:**
@@ -547,7 +548,18 @@ Levels are the curriculum grades (e.g., KG 1, Basic 1, Basic 2, JHS 1).
 **What should happen:**
 - The row dims to indicate the staff member is no longer active.
 - A success notification appears.
-- The archive icon disappears (already-archived staff cannot be archived again).
+- The archive icon is replaced by a **Restore** button.
+
+---
+
+#### Scenario E — Restore an archived staff member
+
+**What to do:**
+1. Find an archived (dimmed) staff member.
+2. Click **Restore** in their row.
+
+**What should happen:**
+- The staff member returns to **Active** status and the row undims.
 
 ---
 
@@ -612,7 +624,7 @@ Levels are the curriculum grades (e.g., KG 1, Basic 1, Basic 2, JHS 1).
 **What to do:**
 1. Click **New Student**.
 2. Fill in:
-   - Student Number: `STU-2026-001`
+   - Student Number: **leave blank** — it auto-generates
    - First Name: `Ama`
    - Last Name: `Owusu`
    - Date of Birth: `2015-04-20`
@@ -622,11 +634,14 @@ Levels are the curriculum grades (e.g., KG 1, Basic 1, Basic 2, JHS 1).
 
 **What should happen:**
 - The dialog closes.
-- The new student appears in the list.
+- The new student appears in the list with the **next student number assigned
+  automatically** (e.g. `STU-0020`). Typing a number instead also works — it
+  must simply be unused.
 - A success notification appears.
 
 **What to report if it fails:**
-- The required fields (Student Number, First Name, Last Name, Date of Birth, Gender) do not show validation errors when left blank.
+- The required fields (First Name, Last Name, Date of Birth, Gender) do not show validation errors when left blank.
+- A blank student number is rejected instead of auto-generating.
 
 ---
 
@@ -704,8 +719,29 @@ Levels are the curriculum grades (e.g., KG 1, Basic 1, Basic 2, JHS 1).
 2. Click the archive icon in their row.
 
 **What should happen:**
-- The row dims.
-- A success notification appears.
+- The guardian **disappears from the list** — archived guardians are hidden by
+  default.
+
+---
+
+#### Scenario E — Show archived and restore
+
+**What to do:**
+1. Tick **Show archived** above the guardians list.
+2. Find the archived guardian (dimmed) and click **Restore**.
+
+**What should happen:**
+- With the toggle on, the archived guardian is visible with a **Restore**
+  button; after restoring, the guardian is back in the normal list.
+- The same toggle-and-restore pattern exists on **Levels**. Classrooms,
+  staff, and students show their archived rows dimmed in the main list with a
+  Restore button. **Files** deliberately has no restore — file archiving is
+  permanent.
+
+> **Identifier reservation:** an archived record keeps its number, name,
+> order index, or phone number reserved. If a new record is refused as a
+> duplicate and you cannot see the holder, tick Show archived — restore the
+> old record rather than recreating it.
 
 ---
 
@@ -804,20 +840,62 @@ The admissions pipeline tracks prospective students from first contact through t
 
 **What should happen:**
 - The dialog closes.
-- The new admission appears in the table with status **Enquiry**.
+- The new admission appears in the table with status **Enquiry** and an
+  **automatically assigned admission number** (e.g. `ADM-0008`) — no dash, no
+  typing.
 - A success notification appears.
+
+**What to report if it fails:**
+- The Admission # column shows a dash or is empty on the new row.
+
+---
+
+#### Scenario B2 — Move an enquiry to Application
+
+**What to do:**
+1. Find an admission with status **Enquiry**.
+2. Click the **Apply** button in its row.
+
+**What should happen:**
+- The status changes to **Application**. (An offer can still be made straight
+  from Enquiry — Apply is optional.)
 
 ---
 
 #### Scenario C — Make an offer
 
 **What to do:**
-1. Find an admission with status **Enquiry** in the table.
+1. Find an admission with status **Enquiry** or **Application** in the table.
 2. Click the **Offer** button in its row.
 
 **What should happen:**
 - The admission's status changes to **Offered**.
 - A success notification appears: "Admission offer made."
+
+---
+
+#### Scenario C2 — Revert an offer
+
+**What to do:**
+1. Find an admission with status **Offered**.
+2. Click the **↩** (Revert offer) button in its row.
+
+**What should happen:**
+- The status returns to **Application** and the offer timestamps are cleared.
+- The linked student and admission number are unchanged.
+
+---
+
+#### Scenario C3 — Reject and Withdraw
+
+**What to do:**
+1. On an Enquiry, Application, or Offered row, click **✕** (Reject) — or
+   **⇥** (Withdraw) on a different row.
+
+**What should happen:**
+- The status becomes **Rejected** (school declined) or **Withdrawn** (family
+  declined), the row dims, and **no further action buttons appear** — both
+  states are final.
 
 ---
 
@@ -834,6 +912,28 @@ The admissions pipeline tracks prospective students from first contact through t
 - The admission's status changes to **Enrolled**.
 - A new enrollment is automatically created and will appear on the Enrollments page.
 - A success notification appears: "Student enrolled successfully."
+
+---
+
+#### Scenario D2 — Revert an enrollment (guarded)
+
+**What to do:**
+1. Find an admission with status **Enrolled** whose student still has an
+   **active** enrollment.
+2. Click **Revert** in its row.
+
+**What should happen:**
+- The request is refused with exactly: *"Withdraw the enrollment first."*
+
+3. Go to **Enrollments**, withdraw that student's active enrollment, return
+   to **Admissions**, click **Revert** again.
+
+**What should happen:**
+- The admission returns to **Offered**; the linked student is kept.
+
+> If the student's enrollment ended as completed, graduated, or transferred
+> (rather than withdrawn), the refusal is permanent and the message says the
+> enrollment "records a real outcome" — that is correct behaviour, not a bug.
 
 ---
 
@@ -855,7 +955,7 @@ The admissions pipeline tracks prospective students from first contact through t
 
 An enrollment is the formal placement of a student in a classroom for a specific academic year.
 
-> **One active enrollment per student per year.** The system prevents you from enrolling the same student in two active enrollments for the same year and curriculum track.
+> **One active enrollment per student per year.** The system prevents a second active enrollment for the same student in the same academic year — regardless of curriculum track. Withdraw the existing enrollment first if a student is moving.
 
 #### Scenario A — View enrollments
 
@@ -891,14 +991,28 @@ An enrollment is the formal placement of a student in a classroom for a specific
 #### Scenario C — Attempt a duplicate enrollment (should be rejected)
 
 **What to do:**
-1. Try to create a second enrollment for the same student, in the same academic year, with the same curriculum track.
+1. Try to create a second enrollment for a student who already has an **Active** enrollment in the same academic year (any curriculum track).
 
 **What should happen:**
-- The system rejects the request and shows a clear error notification: "Student already has an active enrollment for this academic year and curriculum track."
+- The system rejects the request and shows a clear error notification: "Student already has an active enrollment for this academic year. Withdraw it before creating another one."
 
 **What to report if it fails:**
 - The duplicate enrollment is created without an error.
 - The error message is unclear or does not appear.
+
+---
+
+#### Scenario C2 — Attempt an enrollment into an ended year (should be rejected)
+
+**What to do:**
+1. Click **New Enrollment**, select a student and classroom, and choose the
+   **2024/2025** academic year (already ended).
+2. Click **Enroll**.
+
+**What should happen:**
+- The request is rejected with *"Cannot enroll into 2024/2025: the academic
+  year ended on 2025-08-01."* Enrolling into the active or a **future** year
+  works normally — pre-enrollment for the coming year is allowed.
 
 ---
 
@@ -1056,7 +1170,9 @@ Do not report the following as bugs:
 | There is no SMS or notification page | Notifications are Phase 2. |
 | The Dashboard has no statistics or charts | Dashboard content is Phase 2. |
 | You cannot upload a photo or document | Binary file upload is Phase 2. |
-| Student and staff numbers are not auto-generated | Auto-numbering from sequences is Phase 2. |
+| Numbers appear that you did not type | Admission numbers are always auto-assigned; student/staff numbers auto-generate when left blank. |
+| "Withdraw the enrollment first." on Revert | Correct guard — the enrollment must be withdrawn before an enrolled admission can be reverted. |
+| An archived guardian or level is "missing" | Archived rows are hidden until you tick Show archived. |
 | A brief loading spinner appears before data loads | This is normal — the app is fetching data from the server. |
 | A brief "Unauthorized" flash appears in the browser developer console | This is normal — it is the silent session-refresh process, not a real failure. |
 | Enrollments cannot be edited after creation | The backend does not support enrollment edits. Withdraw and re-enroll is the correct workflow. |
@@ -1069,7 +1185,7 @@ The following are known gaps that are acknowledged and either planned for later 
 
 | Limitation | Detail |
 |------------|--------|
-| No auto-generated ID numbers | Student numbers, staff numbers, and admission numbers must be typed manually when creating records. Auto-generation from the document sequence configuration is planned for Phase 2. |
+| Identifier reservation by archived records | Archived records keep their numbers, names, order indexes, and phone numbers reserved permanently. Restore the archived record instead of recreating it. |
 | Enrollment updates not supported | After creating an enrollment, you cannot change the classroom, year, or curriculum track. You must withdraw and re-enroll. |
 | Files are metadata-only | The file register stores names, types, and sizes, but actual file content cannot be uploaded or downloaded until Phase 2. |
 | No role-based page visibility | All logged-in users can see all pages. Role-specific menus and restricted access will be added in a later phase. |

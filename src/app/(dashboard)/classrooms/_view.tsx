@@ -2,16 +2,17 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil, Archive, UserCheck } from 'lucide-react';
+import { Plus, Pencil, Archive, ArchiveRestore, UserCheck } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { EmptyTable } from '@/components/shared/empty-table';
 import { FormDialog, FormFooter } from '@/components/shared/form-dialog';
+import { SearchableSelect } from '@/components/shared/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -119,11 +120,43 @@ function ClassroomForm({
 function AssignTeacherDialog({
   classroom, open, onOpenChange,
 }: { classroom: Classroom; open: boolean; onOpenChange: (v: boolean) => void }) {
-  const form = useForm({ resolver: zodResolver(assignTeacherSchema) });
-  const { data: staffData } = useQuery({
-    queryKey: queryKeys.staff.list({ roleCategory: 'teacher' }),
-    queryFn: () => staffApi.list({ roleCategory: 'teacher', limit: 100 }).then((r) => r.data.data.items),
+  const form = useForm({
+    resolver: zodResolver(assignTeacherSchema),
+    defaultValues: { staffId: classroom.classTeacherId ?? '' },
   });
+  // Server-side search (staff list capped at 100); active teachers only —
+  // the backend refuses non-active assignments regardless.
+  const [staffSearch, setStaffSearch] = useState('');
+  const { data: staffData, isPending: staffLoading } = useQuery({
+    queryKey: queryKeys.staff.list({ roleCategory: 'teacher', status: 'active', search: staffSearch }),
+    queryFn: () =>
+      staffApi
+        .list({ roleCategory: 'teacher', status: 'active', limit: 100, ...(staffSearch ? { search: staffSearch } : {}) })
+        .then((r) => r.data.data.items),
+  });
+  // Persist-with-flag: a terminated teacher keeps the assignment on record.
+  // If the current teacher is no longer in the active list, show them
+  // flagged so the dialog reflects reality.
+  const { data: currentTeacher } = useQuery({
+    queryKey: queryKeys.staff.detail(classroom.classTeacherId ?? 'none'),
+    queryFn: () => staffApi.get(classroom.classTeacherId!).then((r) => r.data.data),
+    enabled: !!classroom.classTeacherId,
+  });
+  const teacherOptions = (staffData ?? []).map((st) => ({
+    value: st.id,
+    label: `${st.firstName} ${st.lastName} (${st.staffNumber})`,
+  }));
+  if (
+    currentTeacher &&
+    currentTeacher.status !== 'active' &&
+    !teacherOptions.some((o) => o.value === currentTeacher.id)
+  ) {
+    teacherOptions.unshift({
+      value: currentTeacher.id,
+      label: `${currentTeacher.firstName} ${currentTeacher.lastName} (${currentTeacher.staffNumber})`,
+      hint: `(${currentTeacher.status.replace('_', ' ')})`,
+    } as (typeof teacherOptions)[number]);
+  }
 
   const { mutate, isPending } = useApiMutation({
     mutationFn: ({ staffId }: { staffId: string }) =>
@@ -143,12 +176,23 @@ function AssignTeacherDialog({
       <form id="assign-teacher-form" onSubmit={form.handleSubmit((v) => mutate(v))} className="space-y-3">
         <div className="space-y-1.5">
           <Label htmlFor="at-staff">Staff Member *</Label>
-          <Select id="at-staff" {...form.register('staffId')} defaultValue={classroom.classTeacherId ?? ''}>
-            <option value="">Select staff…</option>
-            {staffData?.map((s) => (
-              <option key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.staffNumber})</option>
-            ))}
-          </Select>
+          <Controller
+            control={form.control}
+            name="staffId"
+            render={({ field }) => (
+              <SearchableSelect
+                id="at-staff"
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                loading={staffLoading}
+                onSearch={setStaffSearch}
+                placeholder="Select staff…"
+                options={teacherOptions}
+                emptyMessage={(q) => (q ? `No active teachers match '${q}'` : 'No active teachers')}
+                aria-invalid={!!form.formState.errors.staffId}
+              />
+            )}
+          />
           {form.formState.errors.staffId && (
             <p className="text-xs text-destructive">{String(form.formState.errors.staffId.message)}</p>
           )}
@@ -188,6 +232,12 @@ export function ClassroomsView() {
     invalidateKeys: INVALIDATE,
   });
 
+  const { mutate: restore } = useApiMutation<unknown, string>({
+    mutationFn: (id) => classroomsApi.restore(id).then((r) => r.data.data),
+    successMessage: 'Classroom restored.',
+    invalidateKeys: INVALIDATE,
+  });
+
   const sorted = [...data].sort((a, b) => a.displayName.localeCompare(b.displayName));
   const COLS = 6;
 
@@ -195,7 +245,7 @@ export function ClassroomsView() {
     <div className="space-y-6">
       <PageHeader
         title="Classrooms"
-        description="Class groups for each academic year and level. Archiving is permanent in Phase 1 — archived classrooms cannot be restored."
+        description="Class groups for each academic year and level. Archived classrooms can be restored (restore the level first if it is archived)."
         action={
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -245,11 +295,19 @@ export function ClassroomsView() {
                       <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditTarget(cr)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      {cr.isActive && (
+                      {cr.isActive ? (
                         <Button size="sm" variant="ghost"
                           className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                          title="Archive"
                           onClick={() => archive(cr.id)}>
                           <Archive className="h-3.5 w-3.5" />
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                          title="Restore"
+                          onClick={() => restore(cr.id)}>
+                          <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
+                          Restore
                         </Button>
                       )}
                     </div>
