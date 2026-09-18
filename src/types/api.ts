@@ -843,3 +843,258 @@ export interface ClassroomRegisterGrid {
   }>;
   totals: AttendanceSummary;
 }
+
+// ─── Fees and billing (Phase 2 Stage 1b) ─────────────────────────────────────
+
+/**
+ * MONEY IS ALWAYS A STRING on this boundary. The backend serialises every
+ * amount as a fixed-2dp string and never as a JSON number; parsing one into a
+ * JavaScript float to do arithmetic reintroduces the error the Decimal column
+ * exists to avoid. Display them, sum them server-side.
+ */
+export type MoneyString = string;
+
+export type FeePaymentMethod =
+  | 'mobile_money'
+  | 'cash'
+  | 'bank_transfer'
+  | 'cheque'
+  | 'card';
+
+export type MomoProviderCode = 'MTN' | 'TELECEL' | 'AIRTELTIGO';
+
+export type PaymentState = 'pending' | 'partially_paid' | 'paid';
+
+export interface FeeType {
+  id: string;
+  schoolId: string;
+  labelId: string | null;
+  label: FinanceLabel | null;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFeeTypePayload {
+  name: string;
+  description?: string;
+  labelId?: string;
+}
+export type UpdateFeeTypePayload = Partial<CreateFeeTypePayload>;
+
+export interface SchoolFee {
+  id: string;
+  schoolId: string;
+  feeTypeId: string;
+  levelId: string;
+  academicYearId: string;
+  termId: string;
+  name: string;
+  amount: MoneyString;
+  isActive: boolean;
+  feeType?: FeeType;
+  level?: Level;
+  term?: Term;
+  academicYear?: AcademicYear;
+  _count?: { assignments: number };
+  /** Only present on the create response. */
+  assignedCount?: number;
+}
+
+export interface CreateSchoolFeePayload {
+  feeTypeId: string;
+  levelId: string;
+  academicYearId: string;
+  termId: string;
+  name: string;
+  amount: MoneyString;
+}
+
+export interface UpdateSchoolFeePayload {
+  name?: string;
+  amount?: MoneyString;
+}
+
+export interface FeePayment {
+  id: string;
+  schoolId: string;
+  feeAssignmentId: string;
+  receiptNumber: string | null;
+  amount: MoneyString;
+  method: FeePaymentMethod;
+  providerCode: string | null;
+  reference: string | null;
+  paidOn: string;
+  notes: string | null;
+  reversesPaymentId: string | null;
+  reversalReason: string | null;
+  createdAt: string;
+  feeAssignment?: {
+    id: string;
+    schoolFee: { name: string; feeType: { name: string }; term: { label: string } };
+    enrollment: { student: { studentNumber: string; firstName: string; lastName: string } };
+  };
+}
+
+export interface CreatePaymentPayload {
+  feeAssignmentId: string;
+  amount: MoneyString;
+  method: FeePaymentMethod;
+  providerCode?: MomoProviderCode;
+  reference?: string;
+  paidOn: string;
+  notes?: string;
+}
+
+export interface AssignmentPayments {
+  feeAssignmentId: string;
+  amountDue: MoneyString;
+  collected: MoneyString;
+  outstanding: MoneyString;
+  /** What the payment form's "maximum" hint shows. */
+  maximumPayable: MoneyString;
+  payments: FeePayment[];
+}
+
+export interface BillLine {
+  feeAssignmentId: string;
+  feeTypeName: string;
+  name: string;
+  billed: MoneyString;
+  collected: MoneyString;
+  outstanding: MoneyString;
+  paymentState: PaymentState;
+}
+
+export interface StudentBill {
+  student: { id: string; studentNumber: string; fullName: string };
+  term: { id: string; label: string };
+  lines: BillLine[];
+  currentTermDue: MoneyString;
+  currentTermPaid: MoneyString;
+  currentTermOutstanding: MoneyString;
+  /** Informational: earlier unpaid terms. Never a line — that would re-bill. */
+  broughtForward: MoneyString;
+  totalDue: MoneyString;
+  paymentState: PaymentState;
+}
+
+export interface LedgerTotals {
+  billed: MoneyString;
+  collected: MoneyString;
+  outstanding: MoneyString;
+}
+
+export interface FeeSummaryStudent extends LedgerTotals {
+  enrollmentId: string;
+  studentId: string;
+  studentNumber: string;
+  fullName: string;
+  classroom: string;
+  feeCount: number;
+  broughtForward: MoneyString;
+  totalDue: MoneyString;
+  /** null when the student has no fees at all — not the same as "pending". */
+  paymentState: PaymentState | null;
+}
+
+export interface FeeLevelSummary {
+  level: { id: string; name: string };
+  term: { id: string; label: string };
+  students: FeeSummaryStudent[];
+  totals: LedgerTotals;
+  studentCount: number;
+  /** The safety net for the manual reconcile. */
+  unassignedStudentCount: number;
+}
+
+export interface LedgerRow extends LedgerTotals {
+  feeTypeId: string;
+  feeTypeName: string;
+  label: { id: string; name: string; category: LabelCategory } | null;
+  termId: string;
+  termLabel: string;
+  accountName: string;
+  assignmentCount: number;
+}
+
+export interface FeeLedger {
+  rows: LedgerRow[];
+  totals: LedgerTotals;
+}
+
+// ─── Invoices (Phase 2 Stage 1b) ─────────────────────────────────────────────
+
+/** Only the two states the SCHOOL drives. Payment state is separate. */
+export type InvoiceStatus = 'issued' | 'cancelled';
+
+export interface InvoiceChainEntry {
+  id: string;
+  invoiceNumber: string;
+  status: InvoiceStatus;
+  issuedOn: string;
+  cancellationReason: string | null;
+}
+
+export interface InvoiceLine extends LedgerTotals {
+  invoiceLineId: string;
+  feeAssignmentId: string;
+  feeTypeName: string;
+  name: string;
+  voidedAt: string | null;
+}
+
+export interface Invoice extends LedgerTotals {
+  id: string;
+  invoiceNumber: string;
+  status: InvoiceStatus;
+  /** DERIVED on every read from the covered assignments. Never stored. */
+  paymentState: PaymentState;
+  issuedOn: string;
+  dueOn: string | null;
+  notes: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+  student: { id: string; studentNumber: string; fullName: string };
+  classroom: string;
+  academicYear: string;
+  term: { id: string; label: string };
+  lines: InvoiceLine[];
+  supersedesInvoiceId: string | null;
+  /** Derived from the back-relation — there is no such column. */
+  supersededByInvoiceId: string | null;
+  chain: { supersedes: InvoiceChainEntry[]; supersededBy: InvoiceChainEntry[] };
+  /** Only on a cancel response. */
+  paymentsRetained?: number;
+  paymentsRetainedTotal?: MoneyString;
+}
+
+export interface InvoiceListItem extends LedgerTotals {
+  id: string;
+  invoiceNumber: string;
+  status: InvoiceStatus;
+  paymentState: PaymentState;
+  issuedOn: string;
+  dueOn: string | null;
+  student: { id: string; studentNumber: string; fullName: string };
+  term: { id: string; label: string };
+  lineCount: number;
+  supersedesInvoiceId: string | null;
+}
+
+export interface CreateInvoicePayload {
+  enrollmentId: string;
+  termId: string;
+  feeAssignmentIds: string[];
+  dueOn?: string;
+  notes?: string;
+}
+
+export interface CorrectInvoicePayload {
+  reason: string;
+  feeAssignmentIds?: string[];
+  dueOn?: string;
+  notes?: string;
+}

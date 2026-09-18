@@ -18,6 +18,10 @@ import {
   ClipboardList,
   CalendarCheck,
   Tags,
+  Wallet,
+  Coins,
+  ReceiptText,
+  BookText,
   UserCheck,
   FolderOpen,
   ScrollText,
@@ -76,6 +80,16 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Admissions', href: '/admissions', icon: ClipboardList },
       { label: 'Enrollments', href: '/enrollments', icon: UserCheck },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { label: 'Fee Types', href: '/fees/types', icon: Tags },
+      { label: 'Fees', href: '/fees', icon: Coins },
+      { label: 'Billing', href: '/fees/billing', icon: Wallet },
+      { label: 'Invoices', href: '/invoices', icon: ReceiptText },
+      { label: 'Fee Ledger', href: '/fees/ledger', icon: BookText },
     ],
   },
   {

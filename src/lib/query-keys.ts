@@ -76,6 +76,22 @@ export const queryKeys = {
     list: (params?: object) => [...queryKeys.labels.all, 'list', params ?? {}] as const,
     detail: (id: string) => [...queryKeys.labels.all, id] as const,
   },
+  fees: {
+    all: ['fees'] as const,
+    types: (params?: object) => [...queryKeys.fees.all, 'types', params ?? {}] as const,
+    schoolFees: (params?: object) => [...queryKeys.fees.all, 'school-fees', params ?? {}] as const,
+    payments: (params?: object) => [...queryKeys.fees.all, 'payments', params ?? {}] as const,
+    assignmentPayments: (id?: string) => [...queryKeys.fees.all, 'assignment-payments', id ?? ''] as const,
+    summary: (params?: object) => [...queryKeys.fees.all, 'summary', params ?? {}] as const,
+    bill: (studentId?: string, termId?: string) =>
+      [...queryKeys.fees.all, 'bill', studentId ?? '', termId ?? ''] as const,
+    ledger: (params?: object) => [...queryKeys.fees.all, 'ledger', params ?? {}] as const,
+  },
+  invoices: {
+    all: ['invoices'] as const,
+    list: (params?: object) => [...queryKeys.invoices.all, 'list', params ?? {}] as const,
+    detail: (id?: string) => [...queryKeys.invoices.all, id ?? ''] as const,
+  },
   attendance: {
     all: ['attendance'] as const,
     classrooms: () => [...queryKeys.attendance.all, 'classrooms'] as const,
