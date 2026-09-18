@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil, Archive, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, Archive, ArchiveRestore, ChevronDown, ChevronRight, MessageSquare, MessageSquareOff } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
@@ -23,6 +24,8 @@ import {
 import { guardiansApi } from '@/lib/api/endpoints/guardians';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { queryKeys } from '@/lib/query-keys';
+import { StatusBadge } from '@/components/shared/status-badge';
+import { ConsentDialog } from './_consent-dialog';
 import type { Guardian, StudentGuardian, CreateGuardianPayload, UpdateGuardianPayload } from '@/types/api';
 
 const guardianSchema = z.object({
@@ -130,11 +133,13 @@ function LinkedStudentsPanel({ guardianId }: { guardianId: string }) {
 export function GuardiansView() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Guardian | null>(null);
+  const [consentTarget, setConsentTarget] = useState<Guardian | null>(null);
 
-  const queryParams = { page, limit: 50, ...(search ? { search } : {}) };
+  const queryParams = { page, limit: 50, ...(search ? { search } : {}), ...(showArchived ? { includeArchived: true } : {}) };
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.guardians.list(queryParams),
     queryFn: () => guardiansApi.list(queryParams).then((r) => r.data.data),
@@ -162,15 +167,21 @@ export function GuardiansView() {
     invalidateKeys: INVALIDATE,
   });
 
+  const { mutate: restore } = useApiMutation<unknown, string>({
+    mutationFn: (id) => guardiansApi.restore(id).then((r) => r.data.data),
+    successMessage: 'Guardian restored.',
+    invalidateKeys: INVALIDATE,
+  });
+
   const items = data?.items ?? [];
   const pagination = data?.pagination;
-  const COLS = 5;
+  const COLS = 6;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Guardians"
-        description="Parents and guardians of enrolled students. Archiving is permanent in Phase 1 — archived guardians cannot be restored."
+        description="Parents and guardians of enrolled students. Archived guardians are hidden by default and can be shown and restored."
         action={
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -186,6 +197,12 @@ export function GuardiansView() {
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           className="max-w-xs"
         />
+        <Checkbox
+          id="gd-show-archived"
+          label="Show archived"
+          checked={showArchived}
+          onChange={(e) => { setShowArchived(e.target.checked); setPage(1); }}
+        />
       </div>
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
@@ -199,6 +216,7 @@ export function GuardiansView() {
               <TableHead>Primary Phone</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Occupation</TableHead>
+              <TableHead>SMS consent</TableHead>
               <TableHead className="text-right pr-4">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -226,17 +244,49 @@ export function GuardiansView() {
                     <TableCell className="text-sm text-muted-foreground">{g.email ?? '—'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{g.occupation ?? '—'}</TableCell>
                     <TableCell>
+                      {g.smsConsentGiven ? (
+                        <span className="flex flex-col items-start">
+                          <StatusBadge variant="active" label="Given" />
+                          <span className="mt-0.5 text-[11px] text-muted-foreground">
+                            {(g.smsConsentMethod ?? '').replace(/_/g, ' ')}
+                          </span>
+                        </span>
+                      ) : (
+                        <StatusBadge variant="inactive" label="Not given" />
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center justify-end gap-1">
+                        <Button
+                          size="sm" variant="ghost" className="h-7 w-7 p-0"
+                          data-guardian={`${g.firstName} ${g.lastName}`}
+                          title={g.smsConsentGiven ? 'Withdraw SMS consent' : 'Record SMS consent'}
+                          onClick={() => setConsentTarget(g)}
+                        >
+                          {g.smsConsentGiven
+                            ? <MessageSquareOff className="h-3.5 w-3.5" />
+                            : <MessageSquare className="h-3.5 w-3.5" />}
+                        </Button>
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditTarget(g)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        {!g.archivedAt && (
+                        {!g.archivedAt ? (
                           <Button
                             size="sm" variant="ghost"
                             className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                            title="Archive"
                             onClick={() => archive(g.id)}
                           >
                             <Archive className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                            title="Restore"
+                            onClick={() => restore(g.id)}
+                          >
+                            <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
+                            Restore
                           </Button>
                         )}
                       </div>
@@ -294,6 +344,12 @@ export function GuardiansView() {
           />
         )}
       </FormDialog>
+      <ConsentDialog
+        guardian={consentTarget}
+        open={!!consentTarget}
+        onOpenChange={(o) => { if (!o) setConsentTarget(null); }}
+      />
+
     </div>
   );
 }

@@ -92,6 +92,11 @@ export const queryKeys = {
     list: (params?: object) => [...queryKeys.invoices.all, 'list', params ?? {}] as const,
     detail: (id?: string) => [...queryKeys.invoices.all, id ?? ''] as const,
   },
+  notifications: {
+    all: ['notifications'] as const,
+    list: (params?: object) => [...queryKeys.notifications.all, 'list', params ?? {}] as const,
+    counts: () => [...queryKeys.notifications.all, 'counts'] as const,
+  },
   attendance: {
     all: ['attendance'] as const,
     classrooms: () => [...queryKeys.attendance.all, 'classrooms'] as const,

@@ -421,6 +421,11 @@ export interface Guardian {
   updatedAt: string;
   createdBy: string | null;
   updatedBy: string | null;
+  /** SMS consent — a record, not a preference. Lives on the person. */
+  smsConsentGiven: boolean;
+  smsConsentGivenAt: string | null;
+  smsConsentGivenBy: string | null;
+  smsConsentMethod: string | null;
 }
 
 export interface CreateGuardianPayload {
@@ -1098,3 +1103,75 @@ export interface CorrectInvoicePayload {
   dueOn?: string;
   notes?: string;
 }
+
+// ─── Notifications (Phase 2) ─────────────────────────────────────────────────
+
+export type NotificationChannel = 'sms';
+
+export type NotificationTrigger =
+  | 'fee_reminder'
+  | 'fee_receipt'
+  | 'attendance_absence'
+  | 'account_setup'
+  | 'password_reset'
+  | 'announcement';
+
+/**
+ * `sent` = the gateway accepted it. `delivered` = confirmed on the handset,
+ * where the gateway reports that at all. `suppressed` = never attempted —
+ * no consent, or no usable number — which is deliberately NOT the same as
+ * `failed`, where we tried and it did not work.
+ */
+export type NotificationStatus =
+  | 'queued' | 'sending' | 'sent' | 'delivered' | 'failed' | 'suppressed' | 'cancelled';
+
+export interface NotificationMessage {
+  id: string;
+  channel: NotificationChannel;
+  trigger: NotificationTrigger;
+  status: NotificationStatus;
+  guardianId: string | null;
+  studentId: string | null;
+  toPhone: string;
+  body: string;
+  segmentCount: number;
+  attemptCount: number;
+  nextAttemptAt: string | null;
+  providerCode: string | null;
+  providerMessageId: string | null;
+  lastError: string | null;
+  queuedAt: string;
+  sentAt: string | null;
+  deliveredAt: string | null;
+  failedAt: string | null;
+  guardian: { id: string; firstName: string; lastName: string } | null;
+  student: { id: string; studentNumber: string; firstName: string; lastName: string } | null;
+}
+
+export interface NotificationCounts {
+  byStatus: Record<NotificationStatus, number>;
+  total: number;
+  /** failed + suppressed — from a school's view, the same problem. */
+  needsAttention: number;
+  inFlight: number;
+  /** Billing is per segment, so this is what SMS spend actually tracks. */
+  segments: number;
+}
+
+export interface DispatchResult {
+  batchId: string | null;
+  requested: number;
+  queued: number;
+  suppressed: number;
+  duplicates: number;
+  message?: string;
+}
+
+export const SMS_CONSENT_METHODS = [
+  'verbal_at_enrollment',
+  'written_form',
+  'verbal_in_person',
+  'verbal_by_phone',
+  'sms_reply',
+] as const;
+export type SmsConsentMethod = (typeof SMS_CONSENT_METHODS)[number];

@@ -21,6 +21,7 @@ import {
   Wallet,
   Coins,
   ReceiptText,
+  MessageSquare,
   BookText,
   UserCheck,
   FolderOpen,
@@ -101,6 +102,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Records',
     items: [
+      { label: 'Notifications', href: '/notifications', icon: MessageSquare },
       { label: 'Files', href: '/files', icon: FolderOpen },
       { label: 'Audit Logs', href: '/audit-logs', icon: ScrollText },
     ],
