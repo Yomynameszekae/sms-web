@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Plus, Pencil } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { EmptyTable } from '@/components/shared/empty-table';
@@ -233,70 +234,72 @@ export function TermsView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Year</TableHead>
-              <TableHead>#</TableHead>
-              <TableHead>Label</TableHead>
-              <TableHead>Dates</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right pr-4">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? (
-            <TableSkeleton columns={COLS} />
-          ) : !data?.length ? (
-            <EmptyTable columns={COLS} message="No terms found." />
-          ) : (
-            <TableBody>
-              {data.map((term) => (
-                <TableRow key={term.id}>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {yearLabelMap[term.academicYearId] ?? '—'}
-                  </TableCell>
-                  <TableCell>{term.termNumber}</TableCell>
-                  <TableCell className="font-medium">{term.label}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {fmtDate(term.startDate)} – {fmtDate(term.endDate)}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge variant={STATUS_VARIANT[term.status]} label={STATUS_LABEL[term.status]} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        size="sm" variant="ghost" className="h-7 w-7 p-0"
-                        onClick={() => setEditTarget(term)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      {term.status === 'draft' && (
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Year</TableHead>
+                <TableHead>#</TableHead>
+                <TableHead>Label</TableHead>
+                <TableHead>Dates</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right pr-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? (
+              <TableSkeleton columns={COLS} />
+            ) : !data?.length ? (
+              <EmptyTable columns={COLS} message="No terms found." />
+            ) : (
+              <TableBody>
+                {data.map((term) => (
+                  <TableRow key={term.id}>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {yearLabelMap[term.academicYearId] ?? '—'}
+                    </TableCell>
+                    <TableCell>{term.termNumber}</TableCell>
+                    <TableCell className="font-medium">{term.label}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {fmtDate(term.startDate)} – {fmtDate(term.endDate)}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge variant={STATUS_VARIANT[term.status]} label={STATUS_LABEL[term.status]} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
                         <Button
-                          size="sm" variant="outline" className="h-7 px-2 text-xs"
-                          onClick={() => activate(term.id)}
+                          size="sm" variant="ghost" className="h-7 w-7 p-0"
+                          onClick={() => setEditTarget(term)}
                         >
-                          Activate
+                          <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                      )}
-                      {term.status === 'active' && (
-                        <Button
-                          size="sm" variant="outline"
-                          className="h-7 px-2 text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
-                          onClick={() => close(term.id)}
-                        >
-                          Close
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          )}
-        </Table>
-      </Card>
+                        {term.status === 'draft' && (
+                          <Button
+                            size="sm" variant="outline" className="h-7 px-2 text-xs"
+                            onClick={() => activate(term.id)}
+                          >
+                            Activate
+                          </Button>
+                        )}
+                        {term.status === 'active' && (
+                          <Button
+                            size="sm" variant="outline"
+                            className="h-7 px-2 text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
+                            onClick={() => close(term.id)}
+                          >
+                            Close
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+        </Card>
+      )}
 
       <FormDialog
         open={createOpen}

@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { FileText, Ban, PencilLine } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { NoticeBar } from '@/components/shared/notice-bar';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
@@ -108,55 +109,57 @@ export function InvoicesView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-32">Number</TableHead>
-              <TableHead>Student</TableHead>
-              <TableHead>Term</TableHead>
-              <TableHead className="text-right">Billed</TableHead>
-              <TableHead className="text-right">Outstanding</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Payment</TableHead>
-              <TableHead className="text-right pr-4">Open</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? <TableSkeleton columns={8} />
-            : !rows.length ? <EmptyTable columns={8} message="No invoices issued yet." />
-            : (
-              <TableBody>
-                {rows.map((i) => (
-                  <TableRow key={i.id} className={i.status === 'cancelled' ? 'opacity-60' : ''}>
-                    <TableCell className="font-medium tabular-nums">
-                      {i.invoiceNumber}
-                      {i.supersedesInvoiceId && (
-                        <span className="ml-1.5 text-[11px] text-muted-foreground">(correction)</span>
-                      )}
-                    </TableCell>
-                    <TableCell>{i.student.fullName}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{i.term.label}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatMoney(i.billed)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatMoney(i.outstanding)}</TableCell>
-                    <TableCell>
-                      <StatusBadge variant={i.status === 'issued' ? 'active' : 'archived'}
-                        label={i.status === 'issued' ? 'Issued' : 'Cancelled'} />
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge variant={STATE_VARIANT[i.paymentState]} label={STATE_LABEL[i.paymentState]} />
-                    </TableCell>
-                    <TableCell className="text-right pr-4">
-                      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                        data-invoice={i.invoiceNumber} onClick={() => setOpenId(i.id)}>
-                        <FileText className="mr-1 h-3.5 w-3.5" /> Open
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            )}
-        </Table>
-      </Card>
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-32">Number</TableHead>
+                <TableHead>Student</TableHead>
+                <TableHead>Term</TableHead>
+                <TableHead className="text-right">Billed</TableHead>
+                <TableHead className="text-right">Outstanding</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead className="text-right pr-4">Open</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? <TableSkeleton columns={8} />
+              : !rows.length ? <EmptyTable columns={8} message="No invoices issued yet." />
+              : (
+                <TableBody>
+                  {rows.map((i) => (
+                    <TableRow key={i.id} className={i.status === 'cancelled' ? 'opacity-60' : ''}>
+                      <TableCell className="font-medium tabular-nums">
+                        {i.invoiceNumber}
+                        {i.supersedesInvoiceId && (
+                          <span className="ml-1.5 text-[11px] text-muted-foreground">(correction)</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{i.student.fullName}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{i.term.label}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatMoney(i.billed)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatMoney(i.outstanding)}</TableCell>
+                      <TableCell>
+                        <StatusBadge variant={i.status === 'issued' ? 'active' : 'archived'}
+                          label={i.status === 'issued' ? 'Issued' : 'Cancelled'} />
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge variant={STATE_VARIANT[i.paymentState]} label={STATE_LABEL[i.paymentState]} />
+                      </TableCell>
+                      <TableCell className="text-right pr-4">
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                          data-invoice={i.invoiceNumber} onClick={() => setOpenId(i.id)}>
+                          <FileText className="mr-1 h-3.5 w-3.5" /> Open
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              )}
+          </Table>
+        </Card>
+      )}
 
       <FormDialog open={!!openId} onOpenChange={(o) => { if (!o) { setOpenId(null); setAction(null); } }}
         maxWidth="max-w-2xl"

@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Pencil } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { FormDialog, FormFooter } from '@/components/shared/form-dialog';
 import { Button } from '@/components/ui/button';
@@ -120,54 +121,56 @@ export function DocumentSequencesView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Type</TableHead>
-              <TableHead>Prefix</TableHead>
-              <TableHead>Current #</TableHead>
-              <TableHead>Padding</TableHead>
-              <TableHead>Reset Policy</TableHead>
-              <TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          {isLoading ? (
-            <TableSkeleton columns={COLS + 1} rows={5} />
-          ) : (
-            <TableBody>
-              {data?.map((seq) => (
-                <TableRow key={seq.id}>
-                  <TableCell className="font-medium">{TYPE_LABELS[seq.type]}</TableCell>
-                  <TableCell>
-                    <code className="text-xs bg-muted rounded px-1.5 py-0.5">{seq.prefix ?? '—'}</code>
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className="text-sm text-muted-foreground font-mono"
-                      title="Read-only — current number cannot be changed here"
-                    >
-                      {seq.currentNumber}
-                    </span>
-                  </TableCell>
-                  <TableCell>{seq.paddingLength}</TableCell>
-                  <TableCell>{seq.resetPolicy ?? '—'}</TableCell>
-                  <TableCell>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0"
-                      onClick={() => setEditing(seq)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          )}
-        </Table>
-      </Card>
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Type</TableHead>
+                <TableHead>Prefix</TableHead>
+                <TableHead>Current #</TableHead>
+                <TableHead>Padding</TableHead>
+                <TableHead>Reset Policy</TableHead>
+                <TableHead className="w-12" />
+              </TableRow>
+            </TableHeader>
+            {isLoading ? (
+              <TableSkeleton columns={COLS + 1} rows={5} />
+            ) : (
+              <TableBody>
+                {data?.map((seq) => (
+                  <TableRow key={seq.id}>
+                    <TableCell className="font-medium">{TYPE_LABELS[seq.type]}</TableCell>
+                    <TableCell>
+                      <code className="text-xs bg-muted rounded px-1.5 py-0.5">{seq.prefix ?? '—'}</code>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className="text-sm text-muted-foreground font-mono"
+                        title="Read-only — current number cannot be changed here"
+                      >
+                        {seq.currentNumber}
+                      </span>
+                    </TableCell>
+                    <TableCell>{seq.paddingLength}</TableCell>
+                    <TableCell>{seq.resetPolicy ?? '—'}</TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => setEditing(seq)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+        </Card>
+      )}
 
       {editing && (
         <EditDialog

@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Plus, Pencil, Archive, ArchiveRestore } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { EmptyTable } from '@/components/shared/empty-table';
@@ -169,72 +170,74 @@ export function LevelsView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">#</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Group</TableHead>
-              <TableHead>GES</TableHead>
-              <TableHead>Abeka</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right pr-4">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? (
-            <TableSkeleton columns={COLS + 1} />
-          ) : !sorted.length ? (
-            <EmptyTable columns={COLS + 1} message="No levels yet. Add your first level." />
-          ) : (
-            <TableBody>
-              {sorted.map((level) => (
-                <TableRow key={level.id} className={level.isActive ? '' : 'opacity-50'}>
-                  <TableCell className="text-muted-foreground text-xs">{level.orderIndex}</TableCell>
-                  <TableCell className="font-medium">{level.name}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {GROUP_LABELS[level.levelGroup]}
-                  </TableCell>
-                  <TableCell className="text-sm">{level.gesDesignation ?? '—'}</TableCell>
-                  <TableCell className="text-sm">{level.abekaDesignation ?? '—'}</TableCell>
-                  <TableCell>
-                    <StatusBadge variant={level.isActive ? 'active' : 'archived'} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        size="sm" variant="ghost" className="h-7 w-7 p-0"
-                        onClick={() => setEditTarget(level)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      {level.isActive ? (
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">#</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Group</TableHead>
+                <TableHead>GES</TableHead>
+                <TableHead>Abeka</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right pr-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? (
+              <TableSkeleton columns={COLS + 1} />
+            ) : !sorted.length ? (
+              <EmptyTable columns={COLS + 1} message="No levels yet. Add your first level." />
+            ) : (
+              <TableBody>
+                {sorted.map((level) => (
+                  <TableRow key={level.id} className={level.isActive ? '' : 'opacity-50'}>
+                    <TableCell className="text-muted-foreground text-xs">{level.orderIndex}</TableCell>
+                    <TableCell className="font-medium">{level.name}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {GROUP_LABELS[level.levelGroup]}
+                    </TableCell>
+                    <TableCell className="text-sm">{level.gesDesignation ?? '—'}</TableCell>
+                    <TableCell className="text-sm">{level.abekaDesignation ?? '—'}</TableCell>
+                    <TableCell>
+                      <StatusBadge variant={level.isActive ? 'active' : 'archived'} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
                         <Button
-                          size="sm" variant="ghost"
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                          title="Archive"
-                          onClick={() => archive(level.id)}
+                          size="sm" variant="ghost" className="h-7 w-7 p-0"
+                          onClick={() => setEditTarget(level)}
                         >
-                          <Archive className="h-3.5 w-3.5" />
+                          <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                      ) : (
-                        <Button
-                          size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                          title="Restore"
-                          onClick={() => restore(level.id)}
-                        >
-                          <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
-                          Restore
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          )}
-        </Table>
-      </Card>
+                        {level.isActive ? (
+                          <Button
+                            size="sm" variant="ghost"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                            title="Archive"
+                            onClick={() => archive(level.id)}
+                          >
+                            <Archive className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                            title="Restore"
+                            onClick={() => restore(level.id)}
+                          >
+                            <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
+                            Restore
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+        </Card>
+      )}
 
       <FormDialog
         open={createOpen}

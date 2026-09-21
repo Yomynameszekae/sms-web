@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Plus, Pencil, Archive, ArchiveRestore, UserCheck } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { EmptyTable } from '@/components/shared/empty-table';
@@ -256,68 +257,70 @@ export function ClassroomsView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Level</TableHead>
-              <TableHead>Year</TableHead>
-              <TableHead>Capacity</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right pr-4">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? (
-            <TableSkeleton columns={COLS} />
-          ) : !sorted.length ? (
-            <EmptyTable columns={COLS} message="No classrooms yet." />
-          ) : (
-            <TableBody>
-              {sorted.map((cr) => (
-                <TableRow key={cr.id} className={!cr.isActive ? 'opacity-60' : ''}>
-                  <TableCell className="font-medium">
-                    {cr.displayName}
-                    <div className="text-xs text-muted-foreground">Section {cr.sectionLabel}</div>
-                  </TableCell>
-                  <TableCell className="text-sm">{cr.level?.name ?? cr.levelId.slice(0, 8)}</TableCell>
-                  <TableCell className="text-sm">{cr.academicYear?.label ?? cr.academicYearId.slice(0, 8)}</TableCell>
-                  <TableCell className="text-sm">{cr.capacity ?? '—'}</TableCell>
-                  <TableCell>
-                    <StatusBadge variant={cr.isActive ? 'active' : 'archived'} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Assign teacher"
-                        onClick={() => setAssignTarget(cr)}>
-                        <UserCheck className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditTarget(cr)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      {cr.isActive ? (
-                        <Button size="sm" variant="ghost"
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                          title="Archive"
-                          onClick={() => archive(cr.id)}>
-                          <Archive className="h-3.5 w-3.5" />
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Level</TableHead>
+                <TableHead>Year</TableHead>
+                <TableHead>Capacity</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right pr-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? (
+              <TableSkeleton columns={COLS} />
+            ) : !sorted.length ? (
+              <EmptyTable columns={COLS} message="No classrooms yet." />
+            ) : (
+              <TableBody>
+                {sorted.map((cr) => (
+                  <TableRow key={cr.id} className={!cr.isActive ? 'opacity-60' : ''}>
+                    <TableCell className="font-medium">
+                      {cr.displayName}
+                      <div className="text-xs text-muted-foreground">Section {cr.sectionLabel}</div>
+                    </TableCell>
+                    <TableCell className="text-sm">{cr.level?.name ?? cr.levelId.slice(0, 8)}</TableCell>
+                    <TableCell className="text-sm">{cr.academicYear?.label ?? cr.academicYearId.slice(0, 8)}</TableCell>
+                    <TableCell className="text-sm">{cr.capacity ?? '—'}</TableCell>
+                    <TableCell>
+                      <StatusBadge variant={cr.isActive ? 'active' : 'archived'} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Assign teacher"
+                          onClick={() => setAssignTarget(cr)}>
+                          <UserCheck className="h-3.5 w-3.5" />
                         </Button>
-                      ) : (
-                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                          title="Restore"
-                          onClick={() => restore(cr.id)}>
-                          <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
-                          Restore
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditTarget(cr)}>
+                          <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          )}
-        </Table>
-      </Card>
+                        {cr.isActive ? (
+                          <Button size="sm" variant="ghost"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                            title="Archive"
+                            onClick={() => archive(cr.id)}>
+                            <Archive className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                            title="Restore"
+                            onClick={() => restore(cr.id)}>
+                            <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
+                            Restore
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+        </Card>
+      )}
 
       <FormDialog
         open={createOpen}

@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { NoticeBar } from '@/components/shared/notice-bar';
 import { StatusBadge, type StatusVariant } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
@@ -161,52 +162,54 @@ export function NotificationsView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Type</TableHead>
-              <TableHead>Recipient</TableHead>
-              <TableHead>Message</TableHead>
-              <TableHead className="text-right">Parts</TableHead>
-              <TableHead className="text-right">Tries</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="pr-4">Why not</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? <TableSkeleton columns={7} />
-            : !items.length ? <EmptyTable columns={7} message="No messages yet." />
-            : (
-              <TableBody>
-                {items.map((n) => (
-                  <TableRow key={n.id}>
-                    <TableCell className="text-sm">{TRIGGER_LABEL[n.trigger]}</TableCell>
-                    <TableCell>
-                      <div className="text-sm font-medium">
-                        {n.guardian ? `${n.guardian.firstName} ${n.guardian.lastName}` : '—'}
-                      </div>
-                      <div className="text-xs text-muted-foreground tabular-nums">
-                        {n.toPhone || 'no usable number'}
-                        {n.student && ` · ${n.student.firstName} ${n.student.lastName}`}
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-sm">
-                      <span className="text-xs text-muted-foreground line-clamp-2">{n.body}</span>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-sm">{n.segmentCount}</TableCell>
-                    <TableCell className="text-right tabular-nums text-sm">{n.attemptCount}</TableCell>
-                    <TableCell>
-                      <StatusBadge variant={STATUS_VARIANT[n.status]} label={STATUS_LABEL[n.status]} />
-                    </TableCell>
-                    <TableCell className="pr-4">
-                      <span className="text-xs text-destructive">{n.lastError ?? ''}</span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            )}
-        </Table>
-      </Card>
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Type</TableHead>
+                <TableHead>Recipient</TableHead>
+                <TableHead>Message</TableHead>
+                <TableHead className="text-right">Parts</TableHead>
+                <TableHead className="text-right">Tries</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="pr-4">Why not</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? <TableSkeleton columns={7} />
+              : !items.length ? <EmptyTable columns={7} message="No messages yet." />
+              : (
+                <TableBody>
+                  {items.map((n) => (
+                    <TableRow key={n.id}>
+                      <TableCell className="text-sm">{TRIGGER_LABEL[n.trigger]}</TableCell>
+                      <TableCell>
+                        <div className="text-sm font-medium">
+                          {n.guardian ? `${n.guardian.firstName} ${n.guardian.lastName}` : '—'}
+                        </div>
+                        <div className="text-xs text-muted-foreground tabular-nums">
+                          {n.toPhone || 'no usable number'}
+                          {n.student && ` · ${n.student.firstName} ${n.student.lastName}`}
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-sm">
+                        <span className="text-xs text-muted-foreground line-clamp-2">{n.body}</span>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-sm">{n.segmentCount}</TableCell>
+                      <TableCell className="text-right tabular-nums text-sm">{n.attemptCount}</TableCell>
+                      <TableCell>
+                        <StatusBadge variant={STATUS_VARIANT[n.status]} label={STATUS_LABEL[n.status]} />
+                      </TableCell>
+                      <TableCell className="pr-4">
+                        <span className="text-xs text-destructive">{n.lastError ?? ''}</span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              )}
+          </Table>
+        </Card>
+      )}
 
       {data?.pagination && data.pagination.totalPages > 1 && (
         <Pagination

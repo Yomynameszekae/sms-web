@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Plus, Pencil, Archive, ArchiveRestore } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { NoticeBar } from '@/components/shared/notice-bar';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
@@ -139,56 +140,58 @@ export function FeeTypesView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Statement section</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right pr-4">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? <TableSkeleton columns={5} />
-            : !rows.length ? <EmptyTable columns={5} message="No fee types yet." />
-            : (
-              <TableBody>
-                {rows.map((t) => (
-                  <TableRow key={t.id} className={t.isActive ? '' : 'opacity-50'}>
-                    <TableCell className="font-medium">{t.name}</TableCell>
-                    <TableCell>
-                      {t.label ? <StatusBadge variant="info" label={t.label.name} />
-                        : <span className="text-sm text-muted-foreground">—</span>}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{t.description ?? '—'}</TableCell>
-                    <TableCell><StatusBadge variant={t.isActive ? 'active' : 'archived'} /></TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Edit"
-                          onClick={() => setEditTarget(t)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        {t.isActive ? (
-                          <Button size="sm" variant="ghost"
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                            title="Archive" onClick={() => archive(t.id)}>
-                            <Archive className="h-3.5 w-3.5" />
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Statement section</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right pr-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? <TableSkeleton columns={5} />
+              : !rows.length ? <EmptyTable columns={5} message="No fee types yet." />
+              : (
+                <TableBody>
+                  {rows.map((t) => (
+                    <TableRow key={t.id} className={t.isActive ? '' : 'opacity-50'}>
+                      <TableCell className="font-medium">{t.name}</TableCell>
+                      <TableCell>
+                        {t.label ? <StatusBadge variant="info" label={t.label.name} />
+                          : <span className="text-sm text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{t.description ?? '—'}</TableCell>
+                      <TableCell><StatusBadge variant={t.isActive ? 'active' : 'archived'} /></TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Edit"
+                            onClick={() => setEditTarget(t)}>
+                            <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                        ) : (
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                            title="Restore" onClick={() => restore(t.id)}>
-                            <ArchiveRestore className="mr-1 h-3.5 w-3.5" /> Restore
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            )}
-        </Table>
-      </Card>
+                          {t.isActive ? (
+                            <Button size="sm" variant="ghost"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              title="Archive" onClick={() => archive(t.id)}>
+                              <Archive className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                              title="Restore" onClick={() => restore(t.id)}>
+                              <ArchiveRestore className="mr-1 h-3.5 w-3.5" /> Restore
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              )}
+          </Table>
+        </Card>
+      )}
 
       <FormDialog open={createOpen} onOpenChange={setCreateOpen} title="New Fee Type"
         footer={<FormFooter onCancel={() => setCreateOpen(false)} isPending={creating}

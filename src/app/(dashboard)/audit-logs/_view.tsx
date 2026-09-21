@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { NoticeBar } from '@/components/shared/notice-bar';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { EmptyTable } from '@/components/shared/empty-table';
@@ -183,33 +184,35 @@ export function AuditLogsView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-8" />
-              <TableHead>Timestamp</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>Module</TableHead>
-              <TableHead>Actor</TableHead>
-              <TableHead>Entity</TableHead>
-              <TableHead>User ID</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? (
-            <TableSkeleton columns={COLS} />
-          ) : !items.length ? (
-            <EmptyTable columns={COLS} message="No audit logs found." />
-          ) : (
-            <TableBody>
-              {items.map((log) => (
-                <AuditLogRow key={log.id} log={log} />
-              ))}
-            </TableBody>
-          )}
-        </Table>
-        {pagination && <Pagination {...pagination} onPageChange={setPage} />}
-      </Card>
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8" />
+                <TableHead>Timestamp</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Module</TableHead>
+                <TableHead>Actor</TableHead>
+                <TableHead>Entity</TableHead>
+                <TableHead>User ID</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? (
+              <TableSkeleton columns={COLS} />
+            ) : !items.length ? (
+              <EmptyTable columns={COLS} message="No audit logs found." />
+            ) : (
+              <TableBody>
+                {items.map((log) => (
+                  <AuditLogRow key={log.id} log={log} />
+                ))}
+              </TableBody>
+            )}
+          </Table>
+          {pagination && <Pagination {...pagination} onPageChange={setPage} />}
+        </Card>
+      )}
     </div>
   );
 }

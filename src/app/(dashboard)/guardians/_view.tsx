@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Plus, Pencil, Archive, ArchiveRestore, ChevronDown, ChevronRight, MessageSquare, MessageSquareOff } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { EmptyTable } from '@/components/shared/empty-table';
 import { FormDialog, FormFooter } from '@/components/shared/form-dialog';
@@ -207,106 +208,108 @@ export function GuardiansView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-8" />
-              <TableHead>Name</TableHead>
-              <TableHead>Primary Phone</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Occupation</TableHead>
-              <TableHead>SMS consent</TableHead>
-              <TableHead className="text-right pr-4">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? (
-            <TableSkeleton columns={COLS + 1} />
-          ) : !items.length ? (
-            <EmptyTable columns={COLS + 1} message="No guardians found." />
-          ) : (
-            <TableBody>
-              {items.map((g) => (
-                <Fragment key={g.id}>
-                  <TableRow className={g.archivedAt ? 'opacity-60' : ''}>
-                    <TableCell>
-                      <button
-                        className="text-muted-foreground hover:text-foreground"
-                        onClick={() => setExpandedId(expandedId === g.id ? null : g.id)}
-                      >
-                        {expandedId === g.id
-                          ? <ChevronDown className="h-4 w-4" />
-                          : <ChevronRight className="h-4 w-4" />}
-                      </button>
-                    </TableCell>
-                    <TableCell className="font-medium">{g.firstName} {g.lastName}</TableCell>
-                    <TableCell className="text-sm">{g.phonePrimary}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{g.email ?? '—'}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{g.occupation ?? '—'}</TableCell>
-                    <TableCell>
-                      {g.smsConsentGiven ? (
-                        <span className="flex flex-col items-start">
-                          <StatusBadge variant="active" label="Given" />
-                          <span className="mt-0.5 text-[11px] text-muted-foreground">
-                            {(g.smsConsentMethod ?? '').replace(/_/g, ' ')}
-                          </span>
-                        </span>
-                      ) : (
-                        <StatusBadge variant="inactive" label="Not given" />
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="sm" variant="ghost" className="h-7 w-7 p-0"
-                          data-guardian={`${g.firstName} ${g.lastName}`}
-                          title={g.smsConsentGiven ? 'Withdraw SMS consent' : 'Record SMS consent'}
-                          onClick={() => setConsentTarget(g)}
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8" />
+                <TableHead>Name</TableHead>
+                <TableHead>Primary Phone</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Occupation</TableHead>
+                <TableHead>SMS consent</TableHead>
+                <TableHead className="text-right pr-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? (
+              <TableSkeleton columns={COLS + 1} />
+            ) : !items.length ? (
+              <EmptyTable columns={COLS + 1} message="No guardians found." />
+            ) : (
+              <TableBody>
+                {items.map((g) => (
+                  <Fragment key={g.id}>
+                    <TableRow className={g.archivedAt ? 'opacity-60' : ''}>
+                      <TableCell>
+                        <button
+                          className="text-muted-foreground hover:text-foreground"
+                          onClick={() => setExpandedId(expandedId === g.id ? null : g.id)}
                         >
-                          {g.smsConsentGiven
-                            ? <MessageSquareOff className="h-3.5 w-3.5" />
-                            : <MessageSquare className="h-3.5 w-3.5" />}
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditTarget(g)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        {!g.archivedAt ? (
-                          <Button
-                            size="sm" variant="ghost"
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                            title="Archive"
-                            onClick={() => archive(g.id)}
-                          >
-                            <Archive className="h-3.5 w-3.5" />
-                          </Button>
+                          {expandedId === g.id
+                            ? <ChevronDown className="h-4 w-4" />
+                            : <ChevronRight className="h-4 w-4" />}
+                        </button>
+                      </TableCell>
+                      <TableCell className="font-medium">{g.firstName} {g.lastName}</TableCell>
+                      <TableCell className="text-sm">{g.phonePrimary}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{g.email ?? '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{g.occupation ?? '—'}</TableCell>
+                      <TableCell>
+                        {g.smsConsentGiven ? (
+                          <span className="flex flex-col items-start">
+                            <StatusBadge variant="active" label="Given" />
+                            <span className="mt-0.5 text-[11px] text-muted-foreground">
+                              {(g.smsConsentMethod ?? '').replace(/_/g, ' ')}
+                            </span>
+                          </span>
                         ) : (
-                          <Button
-                            size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                            title="Restore"
-                            onClick={() => restore(g.id)}
-                          >
-                            <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
-                            Restore
-                          </Button>
+                          <StatusBadge variant="inactive" label="Not given" />
                         )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  {expandedId === g.id && (
-                    <TableRow className="bg-muted/30 hover:bg-muted/30">
-                      <TableCell colSpan={COLS + 1} className="py-3 pl-10">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Linked Students</p>
-                        <LinkedStudentsPanel guardianId={g.id} />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="sm" variant="ghost" className="h-7 w-7 p-0"
+                            data-guardian={`${g.firstName} ${g.lastName}`}
+                            title={g.smsConsentGiven ? 'Withdraw SMS consent' : 'Record SMS consent'}
+                            onClick={() => setConsentTarget(g)}
+                          >
+                            {g.smsConsentGiven
+                              ? <MessageSquareOff className="h-3.5 w-3.5" />
+                              : <MessageSquare className="h-3.5 w-3.5" />}
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditTarget(g)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          {!g.archivedAt ? (
+                            <Button
+                              size="sm" variant="ghost"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              title="Archive"
+                              onClick={() => archive(g.id)}
+                            >
+                              <Archive className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                              title="Restore"
+                              onClick={() => restore(g.id)}
+                            >
+                              <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
+                              Restore
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
-                  )}
-                </Fragment>
-              ))}
-            </TableBody>
-          )}
-        </Table>
-        {pagination && <Pagination {...pagination} onPageChange={setPage} />}
-      </Card>
+                    {expandedId === g.id && (
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableCell colSpan={COLS + 1} className="py-3 pl-10">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Linked Students</p>
+                          <LinkedStudentsPanel guardianId={g.id} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+          {pagination && <Pagination {...pagination} onPageChange={setPage} />}
+        </Card>
+      )}
 
       <FormDialog
         open={createOpen}

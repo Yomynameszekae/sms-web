@@ -9,6 +9,7 @@ import { Plus, Pencil, Gift, UserCheck, FileText, Undo2, XCircle, LogOut } from 
 import { NoticeBar } from '@/components/shared/notice-bar';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { EmptyTable } from '@/components/shared/empty-table';
@@ -434,131 +435,133 @@ export function AdmissionsView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Admission #</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Curriculum Interest</TableHead>
-              <TableHead>Application Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Enrolled At</TableHead>
-              <TableHead className="text-right pr-4">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? (
-            <TableSkeleton columns={COLS} />
-          ) : !items.length ? (
-            <EmptyTable columns={COLS} message="No admissions found." />
-          ) : (
-            <TableBody>
-              {items.map((a) => (
-                <TableRow key={a.id} className={a.status === 'rejected' || a.status === 'withdrawn' ? 'opacity-60' : ''}>
-                  <TableCell>
-                    <code className="text-xs bg-muted rounded px-1.5 py-0.5">{a.admissionNumber}</code>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground capitalize">
-                    {a.enquirySource?.replace('_', ' ') ?? '—'}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{a.curriculumInterest ?? '—'}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDateOnly(a.applicationDate)}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge variant={STATUS_VARIANT[a.status]} label={STATUS_LABEL[a.status]} />
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {a.enrolledAt ? new Date(a.enrolledAt).toLocaleDateString('en-GB') : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      {/* State-driven actions — mirrors the backend transition matrix. */}
-                      {a.status === 'enquiry' && (
-                        <Button
-                          size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                          title="Move to application"
-                          onClick={() => apply(a.id)}
-                        >
-                          <FileText className="mr-1 h-3.5 w-3.5" />
-                          Apply
-                        </Button>
-                      )}
-                      {['enquiry', 'application'].includes(a.status) && (
-                        <Button
-                          size="sm" variant="ghost" className="h-7 px-2 text-xs text-primary"
-                          title="Make offer"
-                          onClick={() => offer(a.id)}
-                        >
-                          <Gift className="mr-1 h-3.5 w-3.5" />
-                          Offer
-                        </Button>
-                      )}
-                      {a.status === 'offered' && (
-                        <>
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Admission #</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Curriculum Interest</TableHead>
+                <TableHead>Application Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Enrolled At</TableHead>
+                <TableHead className="text-right pr-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? (
+              <TableSkeleton columns={COLS} />
+            ) : !items.length ? (
+              <EmptyTable columns={COLS} message="No admissions found." />
+            ) : (
+              <TableBody>
+                {items.map((a) => (
+                  <TableRow key={a.id} className={a.status === 'rejected' || a.status === 'withdrawn' ? 'opacity-60' : ''}>
+                    <TableCell>
+                      <code className="text-xs bg-muted rounded px-1.5 py-0.5">{a.admissionNumber}</code>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground capitalize">
+                      {a.enquirySource?.replace('_', ' ') ?? '—'}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{a.curriculumInterest ?? '—'}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatDateOnly(a.applicationDate)}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge variant={STATUS_VARIANT[a.status]} label={STATUS_LABEL[a.status]} />
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {a.enrolledAt ? new Date(a.enrolledAt).toLocaleDateString('en-GB') : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        {/* State-driven actions — mirrors the backend transition matrix. */}
+                        {a.status === 'enquiry' && (
                           <Button
-                            size="sm" variant="ghost" className="h-7 px-2 text-xs" style={{ color: 'var(--success)' }}
-                            title="Enroll student"
-                            onClick={() => setEnrollTarget(a)}
+                            size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                            title="Move to application"
+                            onClick={() => apply(a.id)}
                           >
-                            <UserCheck className="mr-1 h-3.5 w-3.5" />
-                            Enroll
+                            <FileText className="mr-1 h-3.5 w-3.5" />
+                            Apply
                           </Button>
+                        )}
+                        {['enquiry', 'application'].includes(a.status) && (
                           <Button
-                            size="sm" variant="ghost" className="h-7 w-7 p-0"
-                            title="Revert offer"
-                            onClick={() => revertOffer(a.id)}
+                            size="sm" variant="ghost" className="h-7 px-2 text-xs text-primary"
+                            title="Make offer"
+                            onClick={() => offer(a.id)}
                           >
-                            <Undo2 className="h-3.5 w-3.5" />
+                            <Gift className="mr-1 h-3.5 w-3.5" />
+                            Offer
                           </Button>
-                        </>
-                      )}
-                      {['enquiry', 'application', 'offered'].includes(a.status) && (
-                        <>
+                        )}
+                        {a.status === 'offered' && (
+                          <>
+                            <Button
+                              size="sm" variant="ghost" className="h-7 px-2 text-xs" style={{ color: 'var(--success)' }}
+                              title="Enroll student"
+                              onClick={() => setEnrollTarget(a)}
+                            >
+                              <UserCheck className="mr-1 h-3.5 w-3.5" />
+                              Enroll
+                            </Button>
+                            <Button
+                              size="sm" variant="ghost" className="h-7 w-7 p-0"
+                              title="Revert offer"
+                              onClick={() => revertOffer(a.id)}
+                            >
+                              <Undo2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                        {['enquiry', 'application', 'offered'].includes(a.status) && (
+                          <>
+                            <Button
+                              size="sm" variant="ghost"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              title="Reject (school declines)"
+                              onClick={() => reject(a.id)}
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="sm" variant="ghost"
+                              className="h-7 w-7 p-0 text-muted-foreground"
+                              title="Withdraw (family declines)"
+                              onClick={() => withdraw(a.id)}
+                            >
+                              <LogOut className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="sm" variant="ghost" className="h-7 w-7 p-0"
+                              title="Edit"
+                              onClick={() => setEditTarget(a)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                        {a.status === 'enrolled' && (
                           <Button
-                            size="sm" variant="ghost"
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                            title="Reject (school declines)"
-                            onClick={() => reject(a.id)}
+                            size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground"
+                            title="Revert enrollment (requires the enrollment to be withdrawn first)"
+                            onClick={() => revertEnrollment(a.id)}
                           >
-                            <XCircle className="h-3.5 w-3.5" />
+                            <Undo2 className="mr-1 h-3.5 w-3.5" />
+                            Revert
                           </Button>
-                          <Button
-                            size="sm" variant="ghost"
-                            className="h-7 w-7 p-0 text-muted-foreground"
-                            title="Withdraw (family declines)"
-                            onClick={() => withdraw(a.id)}
-                          >
-                            <LogOut className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            size="sm" variant="ghost" className="h-7 w-7 p-0"
-                            title="Edit"
-                            onClick={() => setEditTarget(a)}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                        </>
-                      )}
-                      {a.status === 'enrolled' && (
-                        <Button
-                          size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground"
-                          title="Revert enrollment (requires the enrollment to be withdrawn first)"
-                          onClick={() => revertEnrollment(a.id)}
-                        >
-                          <Undo2 className="mr-1 h-3.5 w-3.5" />
-                          Revert
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          )}
-        </Table>
-        {pagination && <Pagination {...pagination} onPageChange={setPage} />}
-      </Card>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+          {pagination && <Pagination {...pagination} onPageChange={setPage} />}
+        </Card>
+      )}
 
       <FormDialog
         open={createOpen}

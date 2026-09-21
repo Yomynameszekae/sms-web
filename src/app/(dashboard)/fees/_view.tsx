@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Plus, Pencil, Archive, ArchiveRestore, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { NoticeBar } from '@/components/shared/notice-bar';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
@@ -171,62 +172,64 @@ export function SchoolFeesView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Level</TableHead>
-              <TableHead>Fee type</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="text-right">Assigned</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right pr-4">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? <TableSkeleton columns={7} />
-            : !rows.length ? <EmptyTable columns={7} message="No fees for this term yet." />
-            : (
-              <TableBody>
-                {rows.map((f) => (
-                  <TableRow key={f.id} className={f.isActive ? '' : 'opacity-50'}>
-                    <TableCell className="font-medium">{f.level?.name ?? '—'}</TableCell>
-                    <TableCell className="text-sm">{f.feeType?.name ?? '—'}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{f.name}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatMoney(f.amount)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{f._count?.assignments ?? 0}</TableCell>
-                    <TableCell><StatusBadge variant={f.isActive ? 'active' : 'archived'} /></TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                          title="Assign this fee to any student who joined after it was created"
-                          disabled={reconciling} onClick={() => reconcile(f.id)}>
-                          <RefreshCw className="mr-1 h-3.5 w-3.5" /> Reconcile
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Edit"
-                          onClick={() => { editForm.reset({ name: f.name, amount: f.amount }); setEditTarget(f); }}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        {f.isActive ? (
-                          <Button size="sm" variant="ghost"
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                            title="Archive" onClick={() => archive(f.id)}>
-                            <Archive className="h-3.5 w-3.5" />
-                          </Button>
-                        ) : (
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Level</TableHead>
+                <TableHead>Fee type</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right">Assigned</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right pr-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? <TableSkeleton columns={7} />
+              : !rows.length ? <EmptyTable columns={7} message="No fees for this term yet." />
+              : (
+                <TableBody>
+                  {rows.map((f) => (
+                    <TableRow key={f.id} className={f.isActive ? '' : 'opacity-50'}>
+                      <TableCell className="font-medium">{f.level?.name ?? '—'}</TableCell>
+                      <TableCell className="text-sm">{f.feeType?.name ?? '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{f.name}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatMoney(f.amount)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{f._count?.assignments ?? 0}</TableCell>
+                      <TableCell><StatusBadge variant={f.isActive ? 'active' : 'archived'} /></TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
                           <Button size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                            title="Restore" onClick={() => restore(f.id)}>
-                            <ArchiveRestore className="mr-1 h-3.5 w-3.5" /> Restore
+                            title="Assign this fee to any student who joined after it was created"
+                            disabled={reconciling} onClick={() => reconcile(f.id)}>
+                            <RefreshCw className="mr-1 h-3.5 w-3.5" /> Reconcile
                           </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            )}
-        </Table>
-      </Card>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Edit"
+                            onClick={() => { editForm.reset({ name: f.name, amount: f.amount }); setEditTarget(f); }}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          {f.isActive ? (
+                            <Button size="sm" variant="ghost"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              title="Archive" onClick={() => archive(f.id)}>
+                              <Archive className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                              title="Restore" onClick={() => restore(f.id)}>
+                              <ArchiveRestore className="mr-1 h-3.5 w-3.5" /> Restore
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              )}
+          </Table>
+        </Card>
+      )}
 
       <FormDialog open={createOpen} onOpenChange={setCreateOpen} title="New Fee"
         footer={<FormFooter onCancel={() => setCreateOpen(false)} isPending={creating}

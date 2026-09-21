@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Plus, Pencil, Archive, ArchiveRestore } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { NoticeBar } from '@/components/shared/notice-bar';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
@@ -188,71 +189,73 @@ export function LabelsView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right pr-4">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? (
-            <TableSkeleton columns={COLS + 1} />
-          ) : !rows.length ? (
-            <EmptyTable columns={COLS + 1} message="No labels yet. Add your first label." />
-          ) : (
-            <TableBody>
-              {rows.map((label) => (
-                <TableRow key={label.id} className={label.isActive ? '' : 'opacity-50'}>
-                  <TableCell className="font-medium">{label.name}</TableCell>
-                  <TableCell>
-                    <StatusBadge variant="info" label={CATEGORY_LABELS[label.category]} />
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {label.description ?? '—'}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge variant={label.isActive ? 'active' : 'archived'} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        size="sm" variant="ghost" className="h-7 w-7 p-0"
-                        title="Edit"
-                        onClick={() => setEditTarget(label)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      {label.isActive ? (
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right pr-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? (
+              <TableSkeleton columns={COLS + 1} />
+            ) : !rows.length ? (
+              <EmptyTable columns={COLS + 1} message="No labels yet. Add your first label." />
+            ) : (
+              <TableBody>
+                {rows.map((label) => (
+                  <TableRow key={label.id} className={label.isActive ? '' : 'opacity-50'}>
+                    <TableCell className="font-medium">{label.name}</TableCell>
+                    <TableCell>
+                      <StatusBadge variant="info" label={CATEGORY_LABELS[label.category]} />
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {label.description ?? '—'}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge variant={label.isActive ? 'active' : 'archived'} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
                         <Button
-                          size="sm" variant="ghost"
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                          title="Archive"
-                          onClick={() => archive(label.id)}
+                          size="sm" variant="ghost" className="h-7 w-7 p-0"
+                          title="Edit"
+                          onClick={() => setEditTarget(label)}
                         >
-                          <Archive className="h-3.5 w-3.5" />
+                          <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                      ) : (
-                        <Button
-                          size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                          title="Restore"
-                          onClick={() => restore(label.id)}
-                        >
-                          <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
-                          Restore
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          )}
-        </Table>
-      </Card>
+                        {label.isActive ? (
+                          <Button
+                            size="sm" variant="ghost"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                            title="Archive"
+                            onClick={() => archive(label.id)}
+                          >
+                            <Archive className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                            title="Restore"
+                            onClick={() => restore(label.id)}
+                          >
+                            <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
+                            Restore
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+        </Card>
+      )}
 
       <FormDialog
         open={createOpen}

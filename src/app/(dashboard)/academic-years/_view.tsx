@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Plus, Pencil } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { EmptyTable } from '@/components/shared/empty-table';
@@ -135,69 +136,71 @@ export function AcademicYearsView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Label</TableHead>
-              <TableHead>Start Date</TableHead>
-              <TableHead>End Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right pr-4">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? (
-            <TableSkeleton columns={COLS} />
-          ) : !data?.length ? (
-            <EmptyTable columns={COLS} message="No academic years yet. Create one to get started." />
-          ) : (
-            <TableBody>
-              {data.map((ay) => (
-                <TableRow key={ay.id}>
-                  <TableCell className="font-medium">{ay.label}</TableCell>
-                  <TableCell>{fmtDate(ay.startDate)}</TableCell>
-                  <TableCell>{fmtDate(ay.endDate)}</TableCell>
-                  <TableCell>
-                    <StatusBadge variant={ay.isActive ? 'active' : 'inactive'} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={() => setEditTarget(ay)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      {!ay.isActive && (
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Label</TableHead>
+                <TableHead>Start Date</TableHead>
+                <TableHead>End Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right pr-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? (
+              <TableSkeleton columns={COLS} />
+            ) : !data?.length ? (
+              <EmptyTable columns={COLS} message="No academic years yet. Create one to get started." />
+            ) : (
+              <TableBody>
+                {data.map((ay) => (
+                  <TableRow key={ay.id}>
+                    <TableCell className="font-medium">{ay.label}</TableCell>
+                    <TableCell>{fmtDate(ay.startDate)}</TableCell>
+                    <TableCell>{fmtDate(ay.endDate)}</TableCell>
+                    <TableCell>
+                      <StatusBadge variant={ay.isActive ? 'active' : 'inactive'} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => activate(ay.id)}
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => setEditTarget(ay)}
                         >
-                          Activate
+                          <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                      )}
-                      {ay.isActive && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 px-2 text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
-                          onClick={() => close(ay.id)}
-                        >
-                          Close
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          )}
-        </Table>
-      </Card>
+                        {!ay.isActive && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => activate(ay.id)}
+                          >
+                            Activate
+                          </Button>
+                        )}
+                        {ay.isActive && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
+                            onClick={() => close(ay.id)}
+                          >
+                            Close
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+        </Card>
+      )}
 
       {/* Create dialog */}
       <FormDialog

@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Plus, Pencil, Archive, ArchiveRestore, ChevronDown, ChevronRight } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { EmptyTable } from '@/components/shared/empty-table';
@@ -240,92 +241,94 @@ export function StudentsView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-8" />
-              <TableHead>Student #</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Gender</TableHead>
-              <TableHead>Date of Birth</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right pr-4">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? (
-            <TableSkeleton columns={COLS} />
-          ) : !items.length ? (
-            <EmptyTable columns={COLS} message="No students found." />
-          ) : (
-            <TableBody>
-              {items.map((s) => (
-                <Fragment key={s.id}>
-                  <TableRow className={s.status !== 'active' ? 'opacity-60' : ''}>
-                    <TableCell>
-                      <button
-                        className="text-muted-foreground hover:text-foreground"
-                        onClick={() => setExpandedId(expandedId === s.id ? null : s.id)}
-                      >
-                        {expandedId === s.id
-                          ? <ChevronDown className="h-4 w-4" />
-                          : <ChevronRight className="h-4 w-4" />}
-                      </button>
-                    </TableCell>
-                    <TableCell>
-                      <code className="text-xs bg-muted rounded px-1.5 py-0.5">{s.studentNumber}</code>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {s.preferredName ? `${s.preferredName} (${s.firstName})` : s.firstName} {s.lastName}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground capitalize">{s.gender}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{fmtDate(s.dateOfBirth)}</TableCell>
-                    <TableCell>
-                      <StatusBadge variant={STATUS_VARIANT[s.status]} label={STATUS_LABEL[s.status]} />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditTarget(s)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        {s.status === 'active' && (
-                          <Button
-                            size="sm" variant="ghost"
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                            title="Archive"
-                            onClick={() => archive(s.id)}
-                          >
-                            <Archive className="h-3.5 w-3.5" />
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8" />
+                <TableHead>Student #</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Gender</TableHead>
+                <TableHead>Date of Birth</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right pr-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? (
+              <TableSkeleton columns={COLS} />
+            ) : !items.length ? (
+              <EmptyTable columns={COLS} message="No students found." />
+            ) : (
+              <TableBody>
+                {items.map((s) => (
+                  <Fragment key={s.id}>
+                    <TableRow className={s.status !== 'active' ? 'opacity-60' : ''}>
+                      <TableCell>
+                        <button
+                          className="text-muted-foreground hover:text-foreground"
+                          onClick={() => setExpandedId(expandedId === s.id ? null : s.id)}
+                        >
+                          {expandedId === s.id
+                            ? <ChevronDown className="h-4 w-4" />
+                            : <ChevronRight className="h-4 w-4" />}
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        <code className="text-xs bg-muted rounded px-1.5 py-0.5">{s.studentNumber}</code>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {s.preferredName ? `${s.preferredName} (${s.firstName})` : s.firstName} {s.lastName}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground capitalize">{s.gender}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{fmtDate(s.dateOfBirth)}</TableCell>
+                      <TableCell>
+                        <StatusBadge variant={STATUS_VARIANT[s.status]} label={STATUS_LABEL[s.status]} />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditTarget(s)}>
+                            <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                        )}
-                        {s.archivedAt && (
-                          <Button
-                            size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                            title="Restore"
-                            onClick={() => restore(s.id)}
-                          >
-                            <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
-                            Restore
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  {expandedId === s.id && (
-                    <TableRow className="bg-muted/30 hover:bg-muted/30">
-                      <TableCell colSpan={COLS} className="py-3 pl-10">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Guardians</p>
-                        <StudentGuardiansPanel studentId={s.id} />
+                          {s.status === 'active' && (
+                            <Button
+                              size="sm" variant="ghost"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              title="Archive"
+                              onClick={() => archive(s.id)}
+                            >
+                              <Archive className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {s.archivedAt && (
+                            <Button
+                              size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                              title="Restore"
+                              onClick={() => restore(s.id)}
+                            >
+                              <ArchiveRestore className="mr-1 h-3.5 w-3.5" />
+                              Restore
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
-                  )}
-                </Fragment>
-              ))}
-            </TableBody>
-          )}
-        </Table>
-        {pagination && <Pagination {...pagination} onPageChange={setPage} />}
-      </Card>
+                    {expandedId === s.id && (
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableCell colSpan={COLS} className="py-3 pl-10">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Guardians</p>
+                          <StudentGuardiansPanel studentId={s.id} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+          {pagination && <Pagination {...pagination} onPageChange={setPage} />}
+        </Card>
+      )}
 
       <FormDialog
         open={createOpen}

@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Plus, Archive } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { NoticeBar } from '@/components/shared/notice-bar';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { EmptyTable } from '@/components/shared/empty-table';
@@ -184,60 +185,62 @@ export function FilesView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>File Name</TableHead>
-              <TableHead>Owner Type</TableHead>
-              <TableHead>MIME Type</TableHead>
-              <TableHead>Size</TableHead>
-              <TableHead>Public</TableHead>
-              <TableHead>Archived</TableHead>
-              <TableHead className="text-right pr-4">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? (
-            <TableSkeleton columns={COLS} />
-          ) : !items.length ? (
-            <EmptyTable columns={COLS} message="No file records found." />
-          ) : (
-            <TableBody>
-              {items.map((f: FileRecord) => (
-                <TableRow key={f.id} className={f.archivedAt ? 'opacity-60' : ''}>
-                  <TableCell className="font-medium text-sm">
-                    {f.originalFileName}
-                    {f.category && (
-                      <div className="text-xs text-muted-foreground">{f.category}</div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm capitalize">{f.ownerType}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{f.mimeType}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{fmtBytes(f.sizeBytes)}</TableCell>
-                  <TableCell className="text-sm">{f.isPublic ? 'Yes' : 'No'}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {f.archivedAt ? new Date(f.archivedAt).toLocaleDateString('en-GB') : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      {!f.archivedAt && (
-                        <Button
-                          size="sm" variant="ghost"
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => archive(f.id)}
-                        >
-                          <Archive className="h-3.5 w-3.5" />
-                        </Button>
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>File Name</TableHead>
+                <TableHead>Owner Type</TableHead>
+                <TableHead>MIME Type</TableHead>
+                <TableHead>Size</TableHead>
+                <TableHead>Public</TableHead>
+                <TableHead>Archived</TableHead>
+                <TableHead className="text-right pr-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? (
+              <TableSkeleton columns={COLS} />
+            ) : !items.length ? (
+              <EmptyTable columns={COLS} message="No file records found." />
+            ) : (
+              <TableBody>
+                {items.map((f: FileRecord) => (
+                  <TableRow key={f.id} className={f.archivedAt ? 'opacity-60' : ''}>
+                    <TableCell className="font-medium text-sm">
+                      {f.originalFileName}
+                      {f.category && (
+                        <div className="text-xs text-muted-foreground">{f.category}</div>
                       )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          )}
-        </Table>
-        {pagination && <Pagination {...pagination} onPageChange={setPage} />}
-      </Card>
+                    </TableCell>
+                    <TableCell className="text-sm capitalize">{f.ownerType}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{f.mimeType}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{fmtBytes(f.sizeBytes)}</TableCell>
+                    <TableCell className="text-sm">{f.isPublic ? 'Yes' : 'No'}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {f.archivedAt ? new Date(f.archivedAt).toLocaleDateString('en-GB') : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        {!f.archivedAt && (
+                          <Button
+                            size="sm" variant="ghost"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => archive(f.id)}
+                          >
+                            <Archive className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+          {pagination && <Pagination {...pagination} onPageChange={setPage} />}
+        </Card>
+      )}
 
       <FormDialog
         open={createOpen}

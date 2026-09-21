@@ -135,6 +135,77 @@ export function apiErrorMessage(error: unknown): string {
   return parseApiError(error).message;
 }
 
+// ─── authorisation failures are not errors ───────────────────────────────────
+//
+// A 403 is an EXPECTED, STATIC outcome: this account is not allowed to see
+// this thing, and it will still not be allowed one second from now. That makes
+// it different in kind from a 500 or a dropped connection, which are unexpected
+// and often transient. Conflating them produces two specific defects:
+//
+//   1. The raw backend message leaks an internal permission key to the end
+//      user — "Missing required permission(s): fee_types.read" is a sentence
+//      written for a developer, shown to a head teacher.
+//   2. A "Try again" button appears on a failure that retrying CANNOT fix.
+//      Pressing it re-issues the same request with the same token and gets the
+//      same 403, which teaches the user the product is broken.
+//
+// So 403 gets its own classification here and its own calm presentation in
+// <ApiError>. Everything else keeps the existing behaviour.
+
+/** The shape the backend's PermissionsGuard produces. */
+const PERMISSION_KEY_MESSAGE = /Missing required permission\(s\):\s*(.+)$/i;
+
+/** Human labels for permission modules, for the few that do not title-case well. */
+const MODULE_LABELS: Record<string, string> = {
+  fee_types: 'Fee Types',
+  school_fees: 'Fees',
+  fee_assignments: 'Fee Assignments',
+  fee_payments: 'Payments',
+  audit_logs: 'Audit Logs',
+  academic_years: 'Academic Years',
+  document_sequences: 'Document Sequences',
+  school_settings: 'School Settings',
+  student_guardians: 'Student-Guardian Links',
+};
+
+function humaniseModule(module: string): string {
+  return (
+    MODULE_LABELS[module] ??
+    module
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  );
+}
+
+/** True when the request was refused for lack of permission, not because it failed. */
+export function isPermissionDenied(error: unknown): boolean {
+  return parseApiError(error).status === 403;
+}
+
+/**
+ * The feature name to put in front of a user, derived from the permission keys
+ * the guard named — "fee_types.read" becomes "Fee Types".
+ *
+ * Returns null when the message carries no key, in which case the caller falls
+ * back to generic wording. The KEY ITSELF IS NEVER RETURNED: it exists only to
+ * work out a human label, and must not reach the screen.
+ */
+export function deniedFeatureLabel(error: unknown): string | null {
+  const { message } = parseApiError(error);
+  const match = PERMISSION_KEY_MESSAGE.exec(message.trim());
+  if (!match) return null;
+
+  const modules = match[1]
+    .split(/[,\s]+/)
+    .map((key) => key.trim().split('.')[0])
+    .filter(Boolean);
+
+  const unique = [...new Set(modules)];
+  if (!unique.length) return null;
+  return humaniseModule(unique[0]);
+}
+
 /**
  * Attaches server-side field errors to the matching react-hook-form fields.
  * Returns the details that had no matching field, so the caller can surface

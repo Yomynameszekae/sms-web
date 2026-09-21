@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Plus, LogOut } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
+import { isPermissionDenied } from '@/lib/api/errors';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { EmptyTable } from '@/components/shared/empty-table';
@@ -347,62 +348,64 @@ export function EnrollmentsView() {
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
-      <Card className="p-0 gap-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Student ID</TableHead>
-              <TableHead>Classroom</TableHead>
-              <TableHead>Academic Year</TableHead>
-              <TableHead>Track</TableHead>
-              <TableHead>Enrolled</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right pr-4">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          {isLoading ? (
-            <TableSkeleton columns={COLS} />
-          ) : !items.length ? (
-            <EmptyTable columns={COLS} message="No enrollments found." />
-          ) : (
-            <TableBody>
-              {items.map((e) => (
-                <TableRow key={e.id} className={e.status !== 'active' ? 'opacity-60' : ''}>
-                  <TableCell>
-                    <code className="text-xs bg-muted rounded px-1.5 py-0.5">
-                      {e.studentId.slice(0, 8)}…
-                    </code>
-                  </TableCell>
-                  <TableCell className="text-sm">{classroomMap[e.classroomId] ?? e.classroomId.slice(0, 8)}</TableCell>
-                  <TableCell className="text-sm">{yearMap[e.academicYearId] ?? e.academicYearId.slice(0, 8)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{e.curriculumTrack}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDateOnly(e.enrollmentDate)}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge variant={STATUS_VARIANT[e.status]} label={STATUS_LABEL[e.status]} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      {e.status === 'active' && (
-                        <Button
-                          size="sm" variant="ghost"
-                          className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
-                          onClick={() => setWithdrawTarget(e)}
-                        >
-                          <LogOut className="mr-1 h-3.5 w-3.5" />
-                          Withdraw
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          )}
-        </Table>
-        {pagination && <Pagination {...pagination} onPageChange={setPage} />}
-      </Card>
+      {!isPermissionDenied(error) && (
+        <Card className="p-0 gap-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Student ID</TableHead>
+                <TableHead>Classroom</TableHead>
+                <TableHead>Academic Year</TableHead>
+                <TableHead>Track</TableHead>
+                <TableHead>Enrolled</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right pr-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            {isLoading ? (
+              <TableSkeleton columns={COLS} />
+            ) : !items.length ? (
+              <EmptyTable columns={COLS} message="No enrollments found." />
+            ) : (
+              <TableBody>
+                {items.map((e) => (
+                  <TableRow key={e.id} className={e.status !== 'active' ? 'opacity-60' : ''}>
+                    <TableCell>
+                      <code className="text-xs bg-muted rounded px-1.5 py-0.5">
+                        {e.studentId.slice(0, 8)}…
+                      </code>
+                    </TableCell>
+                    <TableCell className="text-sm">{classroomMap[e.classroomId] ?? e.classroomId.slice(0, 8)}</TableCell>
+                    <TableCell className="text-sm">{yearMap[e.academicYearId] ?? e.academicYearId.slice(0, 8)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{e.curriculumTrack}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatDateOnly(e.enrollmentDate)}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge variant={STATUS_VARIANT[e.status]} label={STATUS_LABEL[e.status]} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        {e.status === 'active' && (
+                          <Button
+                            size="sm" variant="ghost"
+                            className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                            onClick={() => setWithdrawTarget(e)}
+                          >
+                            <LogOut className="mr-1 h-3.5 w-3.5" />
+                            Withdraw
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+          {pagination && <Pagination {...pagination} onPageChange={setPage} />}
+        </Card>
+      )}
 
       {createOpen && (
         <CreateEnrollmentDialog open onOpenChange={setCreateOpen} />
