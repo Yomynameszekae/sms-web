@@ -97,6 +97,10 @@ export const queryKeys = {
     list: (params?: object) => [...queryKeys.notifications.all, 'list', params ?? {}] as const,
     counts: () => [...queryKeys.notifications.all, 'counts'] as const,
   },
+  users: {
+    all: ['users'] as const,
+    list: (params?: object) => [...queryKeys.users.all, 'list', params ?? {}] as const,
+  },
   roles: {
     all: ['roles'] as const,
     list: () => [...queryKeys.roles.all, 'list'] as const,

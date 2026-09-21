@@ -1202,3 +1202,27 @@ export interface Role {
   isActive: boolean;
   permissions: RolePermissionLink[];
 }
+
+/** A role as embedded on a user row by `GET /users`. */
+export interface UserRoleLink {
+  id: string;
+  grantedAt: string;
+  role: { id: string; name: string; code: string };
+}
+
+export interface User {
+  id: string;
+  schoolId: string;
+  email: string;
+  phone: string | null;
+  linkedEntityType: string | null;
+  linkedEntityId: string | null;
+  isActive: boolean;
+  mustChangePassword: boolean;
+  lastLoginAt: string | null;
+  /**
+   * user_roles is many-to-many (@@unique([userId, roleId])), so a user may
+   * legitimately hold several roles and their permissions are the union.
+   */
+  roles: UserRoleLink[];
+}

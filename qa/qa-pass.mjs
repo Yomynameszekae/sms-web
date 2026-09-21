@@ -2792,6 +2792,70 @@ try {
     await page.locator('[data-permission="fee_types.read"] input[type=checkbox]').count() === 1);
   newChecks.add('Roles — fee_types.read is togglable from the portal');
 
+  // ── user accounts and role assignment ─────────────────────────────────────
+  //
+  // Which role a PERSON holds, as opposed to what a role can do. These are
+  // two different screens against two different tables, and the staff
+  // roleCategory field is a third, unrelated thing — pinned below so nobody
+  // wires them together later.
+  section('User Accounts');
+
+  r = await apiCall('GET', '/users?limit=100');
+  const userItems = r.body?.data?.items ?? [];
+  const adminUser = userItems.find((u) => u.email === 'admin@example.com');
+  check('Users — the API returns accounts with their roles embedded',
+    r.status === 200 && !!adminUser && Array.isArray(adminUser.roles),
+    `${r.status} users=${userItems.length}`);
+  newChecks.add('Users — the API returns accounts with their roles embedded');
+
+  check('Users — the seeded admin holds SUPER_ADMIN',
+    (adminUser?.roles ?? []).some((l) => l.role.code === 'SUPER_ADMIN'),
+    (adminUser?.roles ?? []).map((l) => l.role.code).join(', ') || 'NONE');
+  newChecks.add('Users — the seeded admin holds SUPER_ADMIN');
+
+  // user_roles is many-to-many, so a second role must be addable alongside
+  // the first rather than replacing it.
+  const bursar = (await apiCall('GET', '/roles')).body?.data?.find((x) => x.code === 'BURSAR');
+  if (adminUser && bursar) {
+    const beforeCount = Number(sql(
+      `select count(*) from user_roles where user_id = '${adminUser.id}'`));
+    r = await apiCall('POST', `/users/${adminUser.id}/roles`, { roleId: bursar.id });
+    const afterCount = Number(sql(
+      `select count(*) from user_roles where user_id = '${adminUser.id}'`));
+    check('Users — assigning a role ADDS it (many-to-many, does not replace)',
+      r.status === 201 && afterCount === beforeCount + 1,
+      `${beforeCount} -> ${afterCount}`);
+    newChecks.add('Users — assigning a role ADDS it (many-to-many, does not replace)');
+
+    r = await apiCall('DELETE', `/users/${adminUser.id}/roles/${bursar.id}`);
+    const restored = Number(sql(
+      `select count(*) from user_roles where user_id = '${adminUser.id}'`));
+    check('Users — removing it restores the original set (no QA residue)',
+      r.status === 200 && restored === beforeCount, `${afterCount} -> ${restored}`);
+    newChecks.add('Users — removing it restores the original set (no QA residue)');
+  }
+
+  // The staff HR category must never become an access-control input.
+  const staffRoleCategoryLeak = sql(
+    `select count(*) from information_schema.columns
+     where table_name = 'user_roles' and column_name like '%categor%'`);
+  check('Users — user_roles carries no staff-category column (the two stay separate)',
+    staffRoleCategoryLeak === '0', `columns=${staffRoleCategoryLeak}`);
+  newChecks.add('Users — user_roles carries no staff-category column (the two stay separate)');
+
+  await gotoRoute(page, '/users');
+  await page.waitForTimeout(2500);
+  check('Users — the screen renders a column per role and the admin row',
+    (await page.locator('thead th').count()) >= 11
+    && (await page.locator('[data-user="admin@example.com"]').count()) === 1,
+    `cols=${await page.locator('thead th').count()}`);
+  newChecks.add('Users — the screen renders a column per role and the admin row');
+
+  check('Users — the screen states it is not the staff HR category',
+    (await page.textContent('body') ?? '').includes(
+      'not the same as the Role field on a staff record'));
+  newChecks.add('Users — the screen states it is not the staff HR category');
+
   // ── health ────────────────────────────────────────────────────────────────
   section('Health');
   check('no uncaught page errors during the run', crashes.length === 0, crashes.slice(0, 3).join(' | '));
