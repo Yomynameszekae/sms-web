@@ -14,6 +14,8 @@ import { Pagination } from '@/components/shared/pagination';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/shared/searchable-select';
+import { guardiansApi } from '@/lib/api/endpoints/guardians';
 import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { notificationsApi } from '@/lib/api/endpoints/notifications';
@@ -59,11 +61,24 @@ export function NotificationsView() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<NotificationStatus | ''>('');
   const [trigger, setTrigger] = useState<NotificationTrigger | ''>('');
+  const [guardianId, setGuardianId] = useState('');
+
+  // Server-side search — the guardians list is capped at 100 rows, so a
+  // client-side filter would miss anyone past the first page.
+  const [guardianSearch, setGuardianSearch] = useState('');
+  const { data: guardianOptions, isPending: guardiansLoading } = useQuery({
+    queryKey: queryKeys.guardians.list({ limit: 100, search: guardianSearch }),
+    queryFn: () =>
+      guardiansApi
+        .list({ limit: 100, ...(guardianSearch ? { search: guardianSearch } : {}) })
+        .then((r) => r.data.data.items),
+  });
 
   const params = {
     page, limit: 20,
     ...(status ? { status: status as NotificationStatus } : {}),
     ...(trigger ? { trigger: trigger as NotificationTrigger } : {}),
+    ...(guardianId ? { guardianId } : {}),
   };
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -158,6 +173,39 @@ export function NotificationsView() {
             ))}
           </Select>
         </div>
+        {/*
+          Filters on guardian_id, which every message now carries — including
+          the suppressed ones. Those are the rows a school actually comes here
+          for, since the question is almost always "why did this parent not get
+          their message".
+        */}
+        <div className="space-y-1.5">
+          <Label htmlFor="nt-guardian" className="text-sm text-muted-foreground">Guardian</Label>
+          <div className="w-64">
+            <SearchableSelect
+              id="nt-guardian"
+              value={guardianId}
+              onChange={(v) => { setGuardianId(v); setPage(1); }}
+              loading={guardiansLoading}
+              onSearch={setGuardianSearch}
+              placeholder="All guardians"
+              options={(guardianOptions ?? []).map((g) => ({
+                value: g.id,
+                label: `${g.firstName} ${g.lastName} — ${g.phonePrimary}`,
+              }))}
+            />
+          </div>
+        </div>
+        {guardianId && (
+          <Button
+            id="nt-guardian-clear"
+            size="sm"
+            variant="outline"
+            onClick={() => { setGuardianId(''); setPage(1); }}
+          >
+            Clear guardian
+          </Button>
+        )}
       </div>
 
       {error && <ApiError error={error} onRetry={() => refetch()} />}
