@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil, Archive, ArchiveRestore } from 'lucide-react';
+import { Plus, Pencil, Archive, ArchiveRestore, KeyRound } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ApiError } from '@/components/shared/api-error';
 import { isPermissionDenied } from '@/lib/api/errors';
+import { usersApi } from '@/lib/api/endpoints/users';
+import { CreateLoginDialog } from './_create-login-dialog';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { EmptyTable } from '@/components/shared/empty-table';
@@ -171,6 +173,30 @@ function EditStaffForm({
 export function StaffView() {
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
+  const [loginTarget, setLoginTarget] = useState<Staff | null>(null);
+
+  // Which staff already hold a login. Answered from the existing users list
+  // rather than a new endpoint: GET /users already returns linkedEntityId on
+  // every row, so the join costs nothing extra here.
+  //
+  // limit is 100 because PaginationDto caps it there and 400s above it. A
+  // school with more than 100 staff logins would get an incomplete set and so
+  // an enabled button for someone who already has one — at which point the
+  // uq_users_school_linked_entity index refuses the write and the 409 says
+  // exactly that. Wrong affordance, correct outcome.
+  const LOGIN_LOOKUP = { limit: 100, linkedEntityType: 'staff' as const };
+  const { data: userPage } = useQuery({
+    queryKey: queryKeys.users.list(LOGIN_LOOKUP),
+    queryFn: () => usersApi.list(LOGIN_LOOKUP).then((r) => r.data.data),
+  });
+  const staffWithLogin = useMemo(
+    () => new Set(
+      (userPage?.items ?? [])
+        .filter((u) => u.linkedEntityType === 'staff')
+        .map((u) => u.linkedEntityId),
+    ),
+    [userPage],
+  );
   const [editTarget, setEditTarget] = useState<Staff | null>(null);
 
   const queryParams = { page, limit: 50 };
@@ -265,6 +291,21 @@ export function StaffView() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          data-create-login={s.id}
+                          disabled={staffWithLogin.has(s.id)}
+                          title={
+                            staffWithLogin.has(s.id)
+                              ? `${s.firstName} ${s.lastName} already has a login. Manage its roles on User Accounts.`
+                              : `Create a login for ${s.firstName} ${s.lastName}`
+                          }
+                          onClick={() => setLoginTarget(s)}
+                        >
+                          <KeyRound className="h-3.5 w-3.5" />
+                        </Button>
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditTarget(s)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -322,6 +363,13 @@ export function StaffView() {
           }
         />
       </FormDialog>
+
+      <CreateLoginDialog
+        key={loginTarget?.id ?? 'none'}
+        staff={loginTarget}
+        open={!!loginTarget}
+        onOpenChange={(v) => { if (!v) setLoginTarget(null); }}
+      />
 
       <FormDialog
         open={!!editTarget}

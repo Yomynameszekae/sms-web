@@ -2856,6 +2856,110 @@ try {
       'not the same as the Role field on a staff record'));
   newChecks.add('Users — the screen states it is not the staff HR category');
 
+  // ── provisioning a login for a staff member ───────────────────────────────
+  //
+  // Staff and User are separate records; this is the flow that joins them.
+  section('Staff logins');
+
+  const provisionStaffId = sql(
+    `select s.id from staff s
+     where s.archived_at is null
+       and not exists (select 1 from users u
+                       where u.linked_entity_type = 'staff' and u.linked_entity_id = s.id)
+     limit 1`);
+
+  // The validation added alongside this flow: linked_entity_id has no foreign
+  // key, so an unchecked write would store a dangling reference silently.
+  r = await apiCall('POST', '/users', {
+    email: `qa-${RUN}-dangling@example.com`,
+    password: 'TempPass123!',
+    linkedEntityType: 'staff',
+    linkedEntityId: '00000000-0000-4000-8000-000000000000',
+  });
+  check('Staff logins — a linkedEntityId matching no staff member is refused',
+    r.status === 404 && /No staff member with that id/.test(r.body?.message ?? ''),
+    `${r.status} ${r.body?.message ?? ''}`);
+  newChecks.add('Staff logins — a linkedEntityId matching no staff member is refused');
+
+  const danglingRows = sql(
+    `select count(*) from users where email = 'qa-${RUN}-dangling@example.com'`);
+  check('Staff logins — and nothing was written when it was refused',
+    danglingRows === '0', `rows=${danglingRows}`);
+  newChecks.add('Staff logins — and nothing was written when it was refused');
+
+  if (provisionStaffId) {
+    const loginEmail = `qa-${RUN}-login@example.com`;
+    r = await apiCall('POST', '/users', {
+      email: loginEmail,
+      password: 'TempPass123!',
+      linkedEntityType: 'staff',
+      linkedEntityId: provisionStaffId,
+    });
+    const newUserId = r.body?.data?.id;
+    check('Staff logins — a login can be created pre-linked to a real staff member',
+      r.status === 201 && !!newUserId, `${r.status} ${r.body?.message ?? ''}`);
+    newChecks.add('Staff logins — a login can be created pre-linked to a real staff member');
+
+    check('Staff logins — the new account must change its password at first sign-in',
+      sql(`select must_change_password from users where id = '${newUserId}'`) === 't',
+      'mustChangePassword');
+    newChecks.add('Staff logins — the new account must change its password at first sign-in');
+
+    check('Staff logins — it starts with NO roles, which is why the UI chains into a picker',
+      sql(`select count(*) from user_roles where user_id = '${newUserId}'`) === '0');
+    newChecks.add('Staff logins — it starts with NO roles, which is why the UI chains into a picker');
+
+    // One login per staff member — the raw-SQL unique index.
+    r = await apiCall('POST', '/users', {
+      email: `qa-${RUN}-second@example.com`,
+      password: 'TempPass123!',
+      linkedEntityType: 'staff',
+      linkedEntityId: provisionStaffId,
+    });
+    check('Staff logins — a second login for the same staff member is refused by name',
+      r.status === 409 && /already has a user account/.test(r.body?.message ?? ''),
+      `${r.status} ${r.body?.message ?? ''}`);
+    newChecks.add('Staff logins — a second login for the same staff member is refused by name');
+  }
+
+  await gotoRoute(page, '/staff');
+  await page.waitForTimeout(3000);
+  check('Staff logins — every staff row offers a Create login action',
+    (await page.locator('[data-create-login]').count()) > 0,
+    `${await page.locator('[data-create-login]').count()} buttons`);
+  newChecks.add('Staff logins — every staff row offers a Create login action');
+
+  const disabledBtn = page.locator('[data-create-login][disabled]').first();
+  check('Staff logins — it is disabled, with a reason, for staff who already have one',
+    (await page.locator('[data-create-login][disabled]').count()) > 0
+    && /already has a login/.test((await disabledBtn.getAttribute('title')) ?? ''),
+    (await disabledBtn.getAttribute('title')) ?? '(none disabled)');
+  newChecks.add('Staff logins — it is disabled, with a reason, for staff who already have one');
+
+  // Read the row's own email first: pre-fill can only mirror what the staff
+  // record actually holds, and `email` is nullable on staff.
+  const targetRow = page.locator('tbody tr').filter({
+    has: page.locator('[data-create-login]:not([disabled])'),
+  }).first();
+  const rowEmail = ((await targetRow.textContent()) ?? '').match(/[\w.+-]+@[\w.-]+/)?.[0] ?? '';
+
+  await targetRow.locator('[data-create-login]').click();
+  await page.waitForSelector('#login-password', { timeout: 15000 });
+
+  check('Staff logins — the dialog generates a temporary password',
+    (await page.inputValue('#login-password')).length >= 8,
+    `${(await page.inputValue('#login-password')).length} chars`);
+  newChecks.add('Staff logins — the dialog generates a temporary password');
+
+  check('Staff logins — the dialog pre-fills the email from the staff record',
+    (await page.inputValue('#login-email')) === rowEmail,
+    `input="${await page.inputValue('#login-email')}" row="${rowEmail}"`);
+  newChecks.add('Staff logins — the dialog pre-fills the email from the staff record');
+
+  check('Staff logins — the dialog says the password is temporary',
+    (await page.textContent('body') ?? '').includes('required to choose a new one'));
+  newChecks.add('Staff logins — the dialog says the password is temporary');
+
   // ── health ────────────────────────────────────────────────────────────────
   section('Health');
   check('no uncaught page errors during the run', crashes.length === 0, crashes.slice(0, 3).join(' | '));
