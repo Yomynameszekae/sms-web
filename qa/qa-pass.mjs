@@ -2678,18 +2678,48 @@ try {
   // A DIFFERENT trigger, so the fee-reminder dedupe key for today cannot mask
   // the refusal — this has to fail because consent is gone, not because the
   // message was already sent.
+  //
+  // The date is resolved from THIS student's own records, not max() over every
+  // attendance row in the database. The global max lands wherever the demo
+  // seed last reached, and on a date where this student happens to be present
+  // the endpoint answers "nobody is absent" and the check proves nothing about
+  // consent.
+  const absenceDate = sql(
+    `select to_char(max(ar.attendance_date), 'YYYY-MM-DD')
+     from attendance_records ar
+     join enrollments e on e.id = ar.enrollment_id
+     where e.student_id = '${notifyStudentId}'
+       and (ar.morning_status = 'absent' or ar.afternoon_status = 'absent')`);
+
+  // Stated separately so that a seed which stops producing an absence for this
+  // student fails HERE, naming the cause, instead of further down as a
+  // confusing assertion about consent.
+  check('Notifications — the demo data gives this student an absence to alert on',
+    !!absenceDate, absenceDate || 'none — the consent check below cannot be exercised');
+  newChecks.add('Notifications — the demo data gives this student an absence to alert on');
+
   r = await apiCall('POST', '/notifications/absence-alerts', {
     classroomId: sql(`select classroom_id from enrollments where student_id = '${notifyStudentId}' and status = 'active' limit 1`),
-    date: sql(`select to_char(max(attendance_date), 'YYYY-MM-DD') from attendance_records`),
+    date: absenceDate,
   });
+
+  // Matched on STUDENT, not guardian. An absence alert is addressed by
+  // studentId and the guardian is resolved from the primary link, so a
+  // suppressed row carries student_id and leaves guardian_id null. The old
+  // predicate filtered on guardian_id and therefore matched nothing ever; the
+  // check passed only through an `|| r.status === 409` escape, which fires
+  // when nobody is absent and says nothing at all about consent. Both are
+  // gone: this now fails unless a suppression genuinely happened.
   const suppressedAfterRevoke = sql(
     `select count(*) from notification_messages
-     where guardian_id = '${notifyGuardianId}' and status = 'suppressed'
+     where student_id = '${notifyStudentId}'
+       and trigger = 'attendance_absence'
+       and status = 'suppressed'
        and last_error = 'Guardian has not given SMS consent'
        and queued_at >= '${RUN_STARTED_AT}'`);
   check('Notifications — after withdrawal, a message for that guardian is NOT sent, and the log says why',
-    Number(suppressedAfterRevoke) >= 1 || r.status === 409,
-    `suppressed=${suppressedAfterRevoke} alertStatus=${r.status}`);
+    Number(suppressedAfterRevoke) >= 1,
+    `suppressed=${suppressedAfterRevoke} alertStatus=${r.status} date=${absenceDate}`);
   newChecks.add('Notifications — after withdrawal, a message for that guardian is NOT sent, and the log says why');
 
   const everSentAfterRevoke = sql(
