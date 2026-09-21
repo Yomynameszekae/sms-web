@@ -20,6 +20,7 @@ import { rolesApi } from '@/lib/api/endpoints/roles';
 import { isPermissionDenied } from '@/lib/api/errors';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { queryKeys } from '@/lib/query-keys';
+import { formatDateOnly } from '@/lib/date';
 import type { Role, User } from '@/types/api';
 
 /**
@@ -130,13 +131,14 @@ export function UsersView() {
                       {r.name}
                     </TableHead>
                   ))}
+                  <TableHead className="whitespace-nowrap">Last sign-in</TableHead>
                 </TableRow>
               </TableHeader>
               {loading ? (
-                <TableSkeleton columns={2 + roles.length} />
+                <TableSkeleton columns={3 + roles.length} />
               ) : !users.length ? (
                 <EmptyTable
-                  columns={2 + roles.length}
+                  columns={3 + roles.length}
                   message="No user accounts match this filter."
                 />
               ) : (
@@ -172,6 +174,21 @@ export function UsersView() {
                             </span>
                           </TableCell>
                         ))}
+                        <TableCell data-last-login={u.email}>
+                          {u.lastLoginAt === null ? (
+                            // Neutral on purpose. A login provisioned five
+                            // minutes ago has never been used, and that is the
+                            // expected state — styling it as a warning would
+                            // cry wolf on every new account. The genuine
+                            // problem, an account with no role, is flagged
+                            // separately below the table.
+                            <StatusBadge variant="inactive" label="Never signed in" />
+                          ) : (
+                            <span className="text-sm text-muted-foreground whitespace-nowrap">
+                              {formatDateOnly(u.lastLoginAt)}
+                            </span>
+                          )}
+                        </TableCell>
                       </TableRow>
                     );
                   })}
