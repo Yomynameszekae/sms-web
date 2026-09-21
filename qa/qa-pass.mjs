@@ -890,7 +890,36 @@ try {
   await page.waitForSelector(`form#${linkFormId}`);
   await page.waitForTimeout(500);
   await pickSearchable(page, 'lf-guardian', NAMES.guardianLast);
-  await page.fill('#lf-rel', 'mother');
+
+  // Relationship is a preset dropdown with an "Other" escape hatch, not free
+  // text, so that the column stops accumulating "mother"/"Mother"/"mum" for
+  // the same thing.
+  check('Student-guardians — relationship is a dropdown, not free text',
+    (await page.locator('#lf-rel').evaluate((el) => el.tagName)) === 'SELECT');
+  newChecks.add('Student-guardians — relationship is a dropdown, not free text');
+
+  check('Student-guardians — no free-text box until "Other" is chosen',
+    (await page.locator('#lf-rel-other').count()) === 0);
+  newChecks.add('Student-guardians — no free-text box until "Other" is chosen');
+
+  await page.selectOption('#lf-rel', '__other__');
+  await page.waitForTimeout(400);
+  check('Student-guardians — choosing "Other" reveals an empty custom field',
+    (await page.locator('#lf-rel-other').count()) === 1
+    && (await page.inputValue('#lf-rel-other')) === '',
+    `value="${await page.inputValue('#lf-rel-other')}"`);
+  newChecks.add('Student-guardians — choosing "Other" reveals an empty custom field');
+
+  check('Student-guardians — the custom field is capped at the column width',
+    (await page.locator('#lf-rel-other').getAttribute('maxlength')) === '50');
+  newChecks.add('Student-guardians — the custom field is capped at the column width');
+
+  await page.selectOption('#lf-rel', 'Mother');
+  await page.waitForTimeout(400);
+  check('Student-guardians — picking a preset hides the custom field again',
+    (await page.locator('#lf-rel-other').count()) === 0);
+  newChecks.add('Student-guardians — picking a preset hides the custom field again');
+
   await expectCreated(page, {
     label: 'Link Guardian',
     formId: linkFormId,

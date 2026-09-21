@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link2, Pencil, Trash2, Star } from 'lucide-react';
@@ -13,6 +13,7 @@ import { SearchableSelect } from '@/components/shared/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RelationshipField, RELATIONSHIP_MAX } from './_relationship-field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,7 +26,7 @@ import type { StudentGuardian, CreateStudentGuardianPayload, UpdateStudentGuardi
 
 const linkSchema = z.object({
   guardianId:         z.string().min(1, 'Guardian is required'),
-  relationship:       z.string().optional(),
+  relationship:       z.string().max(RELATIONSHIP_MAX, `Keep it under ${RELATIONSHIP_MAX} characters`).optional(),
   isPrimary:          z.boolean().optional(),
   isEmergencyContact: z.boolean().optional(),
   canReceiveSms:      z.boolean().optional(),
@@ -34,7 +35,7 @@ const linkSchema = z.object({
 type LinkForm = z.infer<typeof linkSchema>;
 
 const updateLinkSchema = z.object({
-  relationship:       z.string().optional(),
+  relationship:       z.string().max(RELATIONSHIP_MAX, `Keep it under ${RELATIONSHIP_MAX} characters`).optional(),
   isPrimary:          z.boolean().optional(),
   isEmergencyContact: z.boolean().optional(),
   canReceiveSms:      z.boolean().optional(),
@@ -66,6 +67,7 @@ function CreateLinkForm({
   id, onSubmit,
 }: { id: string; onSubmit: (v: LinkForm) => void }) {
   const form = useForm<LinkForm>({ resolver: zodResolver(linkSchema), defaultValues: { guardianId: '', ...FLAG_DEFAULTS } });
+  const relationship = useWatch({ control: form.control, name: 'relationship' }) ?? '';
   // Server-side search — the guardians list is capped at 100 rows, so a
   // client-side filter would miss guardians beyond the first page.
   const [guardianSearch, setGuardianSearch] = useState('');
@@ -104,11 +106,10 @@ function CreateLinkForm({
           <p className="text-xs text-destructive">{form.formState.errors.guardianId.message}</p>
         )}
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="lf-rel">Relationship</Label>
-        <Input id="lf-rel" placeholder="e.g. mother, father, uncle" {...form.register('relationship')} />
-        <p className="text-xs text-muted-foreground">Relationship lives on the link, not the guardian record.</p>
-      </div>
+      <RelationshipField
+        value={relationship}
+        onChange={(v) => form.setValue('relationship', v, { shouldDirty: true })}
+      />
       <div className="space-y-2 pt-1">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Permissions</p>
         {FLAG_FIELDS.map((f) => (
@@ -128,13 +129,13 @@ function EditLinkForm({
   id, defaultValues, onSubmit,
 }: { id: string; defaultValues: UpdateLinkForm; onSubmit: (v: UpdateLinkForm) => void }) {
   const form = useForm<UpdateLinkForm>({ resolver: zodResolver(updateLinkSchema), defaultValues });
+  const relationship = useWatch({ control: form.control, name: 'relationship' }) ?? '';
   return (
     <form id={id} onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-      <div className="space-y-1.5">
-        <Label htmlFor="lf-rel">Relationship</Label>
-        <Input id="lf-rel" placeholder="e.g. mother, father, uncle" {...form.register('relationship')} />
-        <p className="text-xs text-muted-foreground">Relationship lives on the link, not the guardian record.</p>
-      </div>
+      <RelationshipField
+        value={relationship}
+        onChange={(v) => form.setValue('relationship', v, { shouldDirty: true })}
+      />
       <div className="space-y-2 pt-1">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Permissions</p>
         {FLAG_FIELDS.map((f) => (
