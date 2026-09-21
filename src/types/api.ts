@@ -1175,3 +1175,30 @@ export const SMS_CONSENT_METHODS = [
   'sms_reply',
 ] as const;
 export type SmsConsentMethod = (typeof SMS_CONSENT_METHODS)[number];
+
+// ─── Roles and permissions ───────────────────────────────────────────────────
+
+export interface Permission {
+  id: string;
+  key: string;
+  module: string;
+  description: string | null;
+}
+
+/** `GET /roles` embeds each grant as a join row wrapping the permission. */
+export interface RolePermissionLink {
+  id: string;
+  permission: Permission;
+}
+
+export interface Role {
+  id: string;
+  schoolId: string | null;
+  name: string;
+  code: string;
+  description: string | null;
+  /** System roles are seeded and shared; their grants are still editable. */
+  isSystemRole: boolean;
+  isActive: boolean;
+  permissions: RolePermissionLink[];
+}

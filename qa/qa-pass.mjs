@@ -2730,6 +2730,68 @@ try {
     consentColumn === 1, `column=${consentColumn}`);
   newChecks.add('Consent — the guardians screen shows each guardian’s consent state');
 
+  // ── roles and permissions ─────────────────────────────────────────────────
+  //
+  // The portal path for granting a permission. Before this screen existed the
+  // only way to fix a missing grant on a deployed server was to edit the
+  // database by hand.
+  section('Roles & Permissions');
+
+  r = await apiCall('GET', '/roles');
+  const rolesList = r.body?.data ?? [];
+  check('Roles — the API returns roles with their grants embedded',
+    r.status === 200 && rolesList.length > 0 && Array.isArray(rolesList[0].permissions),
+    `${r.status} roles=${rolesList.length}`);
+  newChecks.add('Roles — the API returns roles with their grants embedded');
+
+  r = await apiCall('GET', '/permissions');
+  const permList = r.body?.data ?? [];
+  check('Roles — the permission catalogue is complete on this database',
+    r.status === 200 && permList.length >= 94,
+    `${permList.length} permissions (expected >= 94)`);
+  newChecks.add('Roles — the permission catalogue is complete on this database');
+
+  // The exact permission whose absence produced the production 403.
+  check('Roles — fee_types.read exists and is therefore grantable',
+    permList.some((p) => p.key === 'fee_types.read'),
+    permList.some((p) => p.key === 'fee_types.read') ? 'present' : 'MISSING');
+  newChecks.add('Roles — fee_types.read exists and is therefore grantable');
+
+  // Grant/revoke round trip against a role that does not hold it by default.
+  const ctRole = rolesList.find((x) => x.code === 'CLASS_TEACHER');
+  const feeRead = permList.find((p) => p.key === 'fee_types.read');
+  if (ctRole && feeRead) {
+    const had = ctRole.permissions.some((l) => l.permission.key === 'fee_types.read');
+    if (!had) {
+      r = await apiCall('POST', `/roles/${ctRole.id}/permissions`, { permissionId: feeRead.id });
+      const granted = sql(
+        `select count(*) from role_permissions where role_id = '${ctRole.id}' and permission_id = '${feeRead.id}'`);
+      check('Roles — granting a permission through the API persists it',
+        r.status === 201 && granted === '1', `${r.status} rows=${granted}`);
+      newChecks.add('Roles — granting a permission through the API persists it');
+
+      r = await apiCall('DELETE', `/roles/${ctRole.id}/permissions/${feeRead.id}`);
+      const after = sql(
+        `select count(*) from role_permissions where role_id = '${ctRole.id}' and permission_id = '${feeRead.id}'`);
+      check('Roles — revoking it again removes the grant (no residue left by QA)',
+        r.status === 200 && after === '0', `${r.status} rows=${after}`);
+      newChecks.add('Roles — revoking it again removes the grant (no residue left by QA)');
+    }
+  }
+
+  await gotoRoute(page, '/roles');
+  await page.waitForTimeout(2500);
+  const roleOptions = await page.locator('#role-picker option').count();
+  const permModules = await page.locator('[data-module]').count();
+  check('Roles — the screen renders a role picker and the grouped catalogue',
+    roleOptions >= 5 && permModules > 10,
+    `roles=${roleOptions} modules=${permModules}`);
+  newChecks.add('Roles — the screen renders a role picker and the grouped catalogue');
+
+  check('Roles — fee_types.read is togglable from the portal',
+    await page.locator('[data-permission="fee_types.read"] input[type=checkbox]').count() === 1);
+  newChecks.add('Roles — fee_types.read is togglable from the portal');
+
   // ── health ────────────────────────────────────────────────────────────────
   section('Health');
   check('no uncaught page errors during the run', crashes.length === 0, crashes.slice(0, 3).join(' | '));
