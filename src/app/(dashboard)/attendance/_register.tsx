@@ -20,8 +20,25 @@ import type {
   AttendanceStatus, MarkRegisterPayload, MarkRegisterResult,
 } from '@/types/api';
 import {
-  AfternoonControl, AttendanceStatusPill, STATUSES, STATUS_LABELS, StatusPicker,
+  AttendanceStatusPill, SessionControl, SessionTag, STATUSES, STATUS_LABELS,
 } from './_status';
+
+/** Colour for the count dots — the same semantic tokens the pickers use. */
+const STATUS_DOT: Record<AttendanceStatus, string> = {
+  present: 'var(--success)',
+  late: 'var(--warning)',
+  absent: 'var(--error)',
+  excused: 'var(--info)',
+};
+
+/** "Esi Ankrah" -> "EA". Two letters, which is all the tile has room for. */
+function initials(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  const first = parts[0][0] ?? '';
+  const last = parts.length > 1 ? parts[parts.length - 1][0] ?? '' : '';
+  return (first + last).toUpperCase();
+}
 
 /**
  * A row the user has touched. Held as a SPARSE OVERLAY over the server's rows
@@ -47,6 +64,18 @@ export function RegisterPanel({
   onDateChange: (date: string) => void;
 }) {
   const [edits, setEdits] = useState<Record<string, RowEdit>>({});
+  // Rows the teacher has opened into two sessions. A row whose stored
+  // afternoon already differs is split regardless — see `isSplit` below.
+  const [splitRows, setSplitRows] = useState<Set<string>>(new Set());
+
+  function setSplit(enrollmentId: string, on: boolean) {
+    setSplitRows((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(enrollmentId);
+      else next.delete(enrollmentId);
+      return next;
+    });
+  }
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.attendance.register(classroomId, date),
@@ -140,6 +169,20 @@ export function RegisterPanel({
       0,
     );
 
+  /** Rows currently showing two sessions, for the footer line. */
+  const splitCount = useMemo(
+    () =>
+      (data?.rows ?? []).filter((row) => {
+        const v = effective[row.enrollmentId];
+        if (!v) return false;
+        return (
+          splitRows.has(row.enrollmentId) ||
+          (v.afternoonStatus !== null && v.afternoonStatus !== v.status)
+        );
+      }).length,
+    [data, effective, splitRows],
+  );
+
   /** Days whose two sessions disagree — what session attendance exists to show. */
   const partialCount = useMemo(
     () =>
@@ -165,6 +208,7 @@ export function RegisterPanel({
   /** Discarding is just dropping the overlay — the server rows are untouched. */
   function reset() {
     setEdits({});
+    setSplitRows(new Set());
   }
 
   function submit() {
@@ -223,26 +267,38 @@ export function RegisterPanel({
           </div>
         )}
 
-        <div className="ml-auto flex items-center gap-2">
-          {editable && (
-            <>
-              <span className="text-xs text-muted-foreground mr-1">Mark all</span>
-              {STATUSES.map((status) => (
-                <Button
-                  key={status}
-                  size="sm"
-                  variant="outline"
-                  id={`att-all-${status}`}
-                  className="h-8 text-xs"
-                  onClick={() => setAll(status)}
-                >
-                  {STATUS_LABELS[status]}
-                </Button>
-              ))}
-            </>
-          )}
-        </div>
       </div>
+
+      {editable && (
+        <div
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border px-4 py-3"
+          style={{ backgroundColor: 'var(--surface-alt)', borderColor: 'var(--border)' }}
+        >
+          <span className="text-xs font-semibold text-muted-foreground">Mark the whole class</span>
+          <div className="inline-flex flex-wrap gap-1.5">
+            {STATUSES.map((status) => (
+              <Button
+                key={status}
+                size="sm"
+                variant="outline"
+                id={`att-all-${status}`}
+                className="h-[34px] min-w-[86px] gap-2 rounded-[10px] text-[12.5px] font-semibold"
+                onClick={() => setAll(status)}
+              >
+                <span
+                  aria-hidden
+                  className="h-[7px] w-[7px] shrink-0 rounded-full"
+                  style={{ backgroundColor: STATUS_DOT[status], opacity: 0.55 }}
+                />
+                {STATUS_LABELS[status]}
+              </Button>
+            ))}
+          </div>
+          <span className="ml-auto text-xs text-muted-foreground">
+            Then adjust the pupils who differ
+          </span>
+        </div>
+      )}
 
       {data && !editable && data.lockReason && (
         <NoticeBar variant="lock">{data.lockReason}</NoticeBar>
@@ -251,18 +307,20 @@ export function RegisterPanel({
       {error && <ApiError error={error} onRetry={() => refetch()} />}
 
       {data && (
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
-          <span className="text-muted-foreground">
-            {marked} of {data.rows.length} marked
-          </span>
+        <div className="flex flex-wrap items-center gap-x-7 gap-y-3">
           {STATUSES.map((status) => (
-            <span key={status} className="flex items-center gap-1.5">
-              <AttendanceStatusPill status={status} />
-              <span className="tabular-nums">{countOf(status)}</span>
+            <span key={status} className="flex items-center gap-2.5">
+              <i
+                aria-hidden
+                className="h-[9px] w-[9px] shrink-0 rounded-full"
+                style={{ backgroundColor: STATUS_DOT[status] }}
+              />
+              <b className="text-xl font-semibold leading-none tabular-nums">{countOf(status)}</b>
+              <span className="text-[12.5px] text-muted-foreground">{STATUS_LABELS[status].toLowerCase()}</span>
             </span>
           ))}
-          <span className="text-muted-foreground">
-            sessions · {partialCount} partial {partialCount === 1 ? 'day' : 'days'}
+          <span className="ml-auto text-xs text-muted-foreground">
+            counted over sessions · {partialCount} partial {partialCount === 1 ? 'day' : 'days'}
           </span>
         </div>
       )}
@@ -271,17 +329,16 @@ export function RegisterPanel({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-32">Student No.</TableHead>
-              <TableHead>Student</TableHead>
-              <TableHead className="w-[340px]">Morning / Afternoon</TableHead>
-              <TableHead>Note</TableHead>
+              <TableHead className="w-[240px]">Pupil</TableHead>
+              <TableHead>Attendance</TableHead>
+              <TableHead className="w-[240px]">Note</TableHead>
             </TableRow>
           </TableHeader>
           {isLoading ? (
-            <TableSkeleton columns={4} />
+            <TableSkeleton columns={3} />
           ) : !data?.rows.length ? (
             <EmptyTable
-              columns={4}
+              columns={3}
               message="No active enrolments in this classroom, so there is no register to mark."
             />
           ) : (
@@ -293,83 +350,104 @@ export function RegisterPanel({
                   afternoonStatus: row.afternoonStatus,
                   afternoonReason: row.afternoonReason ?? '',
                 };
+                // A row is split when the teacher opened it, or when what is
+                // already stored has the two sessions disagreeing — otherwise
+                // reopening the register would hide a real divergence.
+                const isSplit =
+                  splitRows.has(row.enrollmentId) ||
+                  (value.afternoonStatus !== null && value.afternoonStatus !== value.status);
                 return (
-                  <TableRow key={row.enrollmentId} data-enrollment={row.enrollmentId}>
-                    <TableCell className="text-xs text-muted-foreground tabular-nums">
-                      {row.studentNumber}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      <span className="flex items-center gap-2">
-                        {row.fullName}
-                        {row.amended && (
-                          <span
-                            title="This row was amended after it was first marked"
-                            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
-                          >
-                            <PencilLine className="h-3 w-3" />
-                            amended
+                  <TableRow
+                    key={row.enrollmentId}
+                    data-enrollment={row.enrollmentId}
+                    data-split={isSplit || undefined}
+                    style={isSplit ? { backgroundColor: 'var(--surface-alt)' } : undefined}
+                  >
+                    <TableCell className="align-top">
+                      <span className="flex items-start gap-2.5">
+                        <span
+                          aria-hidden
+                          className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] text-[11.5px] font-bold"
+                          style={{ backgroundColor: 'var(--brand-tile-bg)', color: 'var(--brand-tile-fg)' }}
+                        >
+                          {initials(row.fullName)}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="flex items-center gap-2">
+                            <span className="truncate text-[13.5px] font-semibold leading-tight">
+                              {row.fullName}
+                            </span>
+                            {row.amended && (
+                              <span
+                                title="This row was amended after it was first marked"
+                                className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground"
+                              >
+                                <PencilLine className="h-3 w-3" />
+                                amended
+                              </span>
+                            )}
                           </span>
-                        )}
+                          <span className="block text-[11.5px] tabular-nums text-muted-foreground">
+                            {row.studentNumber}
+                          </span>
+                        </span>
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-top">
                       {editable ? (
-                        <span className="flex flex-col items-start gap-1">
-                          <StatusPicker
-                            rowId={row.studentNumber}
-                            value={value.status}
-                            onChange={(status) =>
-                              setEdits((prev) => ({
-                                ...prev,
-                                [row.enrollmentId]: { ...prev[row.enrollmentId], status },
-                              }))
-                            }
-                          />
-                          <AfternoonControl
-                            rowId={row.studentNumber}
-                            morning={value.status}
-                            afternoon={value.afternoonStatus}
-                            onChange={(status) =>
-                              setEdits((prev) => ({
-                                ...prev,
-                                [row.enrollmentId]: {
-                                  ...prev[row.enrollmentId],
-                                  afternoonStatus: status,
-                                },
-                              }))
-                            }
-                            onReset={() =>
-                              setEdits((prev) => ({
-                                ...prev,
-                                [row.enrollmentId]: {
-                                  ...prev[row.enrollmentId],
-                                  // null, not undefined: an explicit "mirror the
-                                  // morning" that overrides the server's value.
-                                  afternoonStatus: null,
-                                  afternoonReason: '',
-                                },
-                              }))
-                            }
-                          />
-                        </span>
+                        <SessionControl
+                          rowId={row.studentNumber}
+                          morning={value.status}
+                          afternoon={value.afternoonStatus}
+                          split={isSplit}
+                          onSplitChange={(on) => setSplit(row.enrollmentId, on)}
+                          onMorningChange={(status) =>
+                            setEdits((prev) => ({
+                              ...prev,
+                              [row.enrollmentId]: { ...prev[row.enrollmentId], status },
+                            }))
+                          }
+                          onAfternoonChange={(status) =>
+                            setEdits((prev) => ({
+                              ...prev,
+                              [row.enrollmentId]: {
+                                ...prev[row.enrollmentId],
+                                afternoonStatus: status,
+                              },
+                            }))
+                          }
+                          onUseOneMark={() =>
+                            setEdits((prev) => ({
+                              ...prev,
+                              [row.enrollmentId]: {
+                                ...prev[row.enrollmentId],
+                                // null, not undefined: an explicit "mirror the
+                                // morning" that overrides the server's value.
+                                afternoonStatus: null,
+                                afternoonReason: '',
+                              },
+                            }))
+                          }
+                        />
                       ) : (
-                        <span className="flex items-center gap-1.5">
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          {row.afternoonStatus !== row.morningStatus && <SessionTag>AM</SessionTag>}
                           <AttendanceStatusPill status={row.morningStatus} />
                           {row.afternoonStatus !== row.morningStatus && (
                             <>
-                              <span className="text-[11px] text-muted-foreground">PM</span>
+                              <SessionTag>PM</SessionTag>
                               <AttendanceStatusPill status={row.afternoonStatus} />
                             </>
                           )}
                         </span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-top">
                       {editable ? (
-                        <span className="flex flex-col gap-1">
+                        <span className="flex flex-col gap-1.5">
                           <Input
                             className="h-8 text-xs"
-                            placeholder="Optional note"
+                            placeholder={isSplit ? 'AM note' : 'Note (optional)'}
                             value={value.reason}
                             onChange={(e) =>
                               setEdits((prev) => ({
@@ -381,11 +459,10 @@ export function RegisterPanel({
                               }))
                             }
                           />
-                          {value.afternoonStatus !== null &&
-                            value.afternoonStatus !== value.status && (
+                          {isSplit && (
                               <Input
-                                className="h-7 text-[11px]"
-                                placeholder="Afternoon note"
+                                className="h-8 text-xs"
+                                placeholder="PM note"
                                 value={value.afternoonReason}
                                 onChange={(e) =>
                                   setEdits((prev) => ({
@@ -415,7 +492,12 @@ export function RegisterPanel({
       </Card>
 
       {editable && !!data?.rows.length && (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-xs text-muted-foreground">
+            {marked} of {data.rows.length} pupils marked
+            {splitCount > 0 && ` · ${splitCount} split into separate sessions`}
+          </span>
+          <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -430,6 +512,7 @@ export function RegisterPanel({
             <Save className="mr-1.5 h-3.5 w-3.5" />
             {saving ? 'Saving…' : 'Save register'}
           </Button>
+          </div>
         </div>
       )}
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { ArrowLeftRight, ArrowUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AttendanceStatus } from '@/types/api';
 
@@ -27,6 +27,11 @@ export const STATUS_COUNTS_AS: Record<AttendanceStatus, 'present' | 'absent'> = 
   excused: 'absent',
 };
 
+/**
+ * Semantic tokens, never the design file's literal hex. Each status keeps the
+ * meaning the rest of the app already gives that colour, so the register reads
+ * correctly on all five themes and in both light and dark.
+ */
 const STATUS_STYLE: Record<AttendanceStatus, { bg: string; color: string }> = {
   present: { bg: 'var(--success-bg)', color: 'var(--success)' },
   late: { bg: 'var(--warning-bg)', color: 'var(--warning)' },
@@ -69,11 +74,33 @@ export function AttendanceStatusPill({
 }
 
 /**
+ * The session label that sits in front of a picker — ALL DAY, AM or PM.
+ *
+ * ALL DAY is tinted with the accent so the common case reads as the settled
+ * one, and a row showing AM/PM instead is visibly the exception.
+ */
+export function SessionTag({ children, day }: { children: React.ReactNode; day?: boolean }) {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center justify-center rounded px-1.5 py-1 text-[10px] font-bold uppercase leading-none tracking-wider"
+      style={
+        day
+          ? { backgroundColor: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--border)' }
+          : { backgroundColor: 'var(--surface-alt)', color: 'var(--muted-text)', border: '1px solid var(--border)' }
+      }
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
  * Segmented status picker for ONE SESSION of a register row.
  *
- * `session` only affects sizing and the element ids: the afternoon control is
- * visually secondary so a teacher marking a normal day reads one obvious
- * control per child and the PM sits quietly beneath it.
+ * `session` only affects the element ids, so the morning and afternoon
+ * controls of the same row stay addressable apart. The dot carries the status
+ * colour at low opacity until selected, which gives the unselected buttons a
+ * legible resting state without four competing colours in every row.
  */
 export function StatusPicker({
   value,
@@ -88,10 +115,9 @@ export function StatusPicker({
   rowId: string;
   session?: 'morning' | 'afternoon';
 }) {
-  const secondary = session === 'afternoon';
-  const prefix = secondary ? `att-pm-${rowId}` : `att-${rowId}`;
+  const prefix = session === 'afternoon' ? `att-pm-${rowId}` : `att-${rowId}`;
   return (
-    <div className="inline-flex rounded-lg border overflow-hidden" role="group">
+    <div className="inline-flex flex-wrap gap-1.5" role="group">
       {STATUSES.map((status) => {
         const active = value === status;
         const style = STATUS_STYLE[status];
@@ -106,13 +132,21 @@ export function StatusPicker({
             disabled={disabled}
             onClick={() => onChange(status)}
             className={cn(
-              'font-medium transition-colors border-r last:border-r-0',
-              secondary ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs',
+              'inline-flex h-[34px] min-w-[86px] items-center justify-center gap-2 rounded-[10px]',
+              'border text-[12.5px] font-semibold transition-colors',
               'disabled:cursor-not-allowed disabled:opacity-50',
               !active && 'text-muted-foreground hover:bg-muted',
             )}
-            style={active ? { backgroundColor: style.bg, color: style.color } : undefined}
+            style={
+              active
+                ? { backgroundColor: style.bg, color: style.color, borderColor: style.color }
+                : { borderColor: 'var(--border)' }
+            }
           >
+            <span
+              className="h-[7px] w-[7px] shrink-0 rounded-full"
+              style={{ backgroundColor: style.color, opacity: active ? 1 : 0.4 }}
+            />
             {STATUS_LABELS[status]}
           </button>
         );
@@ -122,81 +156,101 @@ export function StatusPicker({
 }
 
 /**
- * The afternoon control for one row.
+ * A row's whole attendance control: one mark for the day, or two.
  *
- * Until the afternoon diverges it reads "same as morning" rather than showing
- * a second identical picker — the common case is a whole day with one status,
- * and making a teacher set two controls for it would be the feature getting in
- * the way of the work. Divergence is one click away and stays visible once
- * chosen.
+ * The register is per SESSION. Most days both halves agree, so the resting
+ * state is a single ALL DAY control and the row only grows a second picker
+ * when a teacher says the two differ — which is also exactly what the API
+ * means by an omitted afternoon.
+ *
+ * Splitting does NOT write an afternoon value. The PM picker simply displays
+ * the morning until the teacher moves it, so opening the split and changing
+ * nothing leaves the row unedited and produces no amendment.
  *
  * NOTE FOR ANYONE READING THIS SCREEN: a Creche or nursery class that runs
- * mornings only marks both sessions the same. That is expected, not a bug and
- * not a data-entry error — the rate comes out identical to a morning-only
- * count.
+ * mornings only leaves every row on ALL DAY. That is expected, not a bug.
  */
-export function AfternoonControl({
+export function SessionControl({
+  rowId,
   morning,
   afternoon,
+  split,
   disabled,
-  onChange,
-  onReset,
-  rowId,
+  onMorningChange,
+  onAfternoonChange,
+  onSplitChange,
+  onUseOneMark,
 }: {
+  rowId: string;
   morning: AttendanceStatus | null;
   afternoon: AttendanceStatus | null;
+  split: boolean;
   disabled?: boolean;
-  onChange: (status: AttendanceStatus) => void;
-  onReset: () => void;
-  rowId: string;
+  onMorningChange: (status: AttendanceStatus) => void;
+  onAfternoonChange: (status: AttendanceStatus) => void;
+  onSplitChange: (split: boolean) => void;
+  onUseOneMark: () => void;
 }) {
-  const diverged = afternoon !== null && morning !== null && afternoon !== morning;
-  // Collapsed until the teacher asks for it, or until the row already has a
-  // divergent afternoon to show.
-  const [open, setOpen] = useState(false);
-  const expanded = open || diverged;
-
-  if (!expanded) {
+  if (!split) {
     return (
-      <button
-        type="button"
-        id={`att-pm-${rowId}-mirror`}
-        data-session="afternoon"
-        data-mirrored="true"
-        disabled={disabled}
-        onClick={() => setOpen(true)}
-        className={cn(
-          'text-[11px] text-muted-foreground underline decoration-dotted underline-offset-2',
-          'hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50',
-        )}
-      >
-        PM: same as morning
-      </button>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex items-center gap-2">
+          <SessionTag day>All day</SessionTag>
+          <StatusPicker rowId={rowId} value={morning} disabled={disabled} onChange={onMorningChange} />
+        </div>
+        <button
+          type="button"
+          id={`att-pm-${rowId}-mirror`}
+          data-session="afternoon"
+          data-mirrored="true"
+          disabled={disabled}
+          onClick={() => onSplitChange(true)}
+          className={cn(
+            'inline-flex h-[34px] items-center gap-1.5 rounded-[10px] border px-3',
+            'text-xs font-semibold transition-colors hover:bg-muted',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+          )}
+          style={{ borderColor: 'var(--border-strong)' }}
+        >
+          <ArrowLeftRight className="h-3.5 w-3.5" />
+          Split AM / PM
+        </button>
+      </div>
     );
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="text-[11px] text-muted-foreground">PM</span>
-      <StatusPicker
-        session="afternoon"
-        rowId={rowId}
-        value={afternoon ?? morning}
-        disabled={disabled}
-        onChange={onChange}
-      />
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2">
+          <SessionTag>AM</SessionTag>
+          <StatusPicker rowId={rowId} value={morning} disabled={disabled} onChange={onMorningChange} />
+        </div>
+        <div className="flex items-center gap-2">
+          <SessionTag>PM</SessionTag>
+          <StatusPicker
+            rowId={rowId}
+            session="afternoon"
+            value={afternoon ?? morning}
+            disabled={disabled}
+            onChange={onAfternoonChange}
+          />
+        </div>
+      </div>
       <button
         type="button"
         id={`att-pm-${rowId}-clear`}
         disabled={disabled}
-        onClick={() => {
-          setOpen(false);
-          onReset();
-        }}
-        className="text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50"
+        onClick={() => { onUseOneMark(); onSplitChange(false); }}
+        className={cn(
+          'inline-flex h-[34px] items-center gap-1.5 rounded-[10px] border border-transparent px-2.5',
+          'text-xs font-semibold text-muted-foreground transition-colors',
+          'hover:bg-muted hover:text-foreground disabled:opacity-50',
+        )}
       >
-        match AM
+        <ArrowUpDown className="h-3.5 w-3.5" />
+        Use one mark
       </button>
-    </span>
+    </div>
   );
 }

@@ -126,7 +126,7 @@ export function AttendanceView() {
     <div className="space-y-6">
       <PageHeader
         title="Attendance"
-        description="Daily register per classroom, and per-term summaries. Class teachers mark their own classroom; administrators can mark any."
+        description="Daily register per classroom. One mark covers the whole day — split a pupil into AM and PM only when the two sessions differ."
         action={
           isSuperAdmin && closedTerms.length ? (
             <Button size="sm" variant="outline" id="att-reopen-open" onClick={() => setReopenOpen(true)}>
